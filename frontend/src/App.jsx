@@ -1,3 +1,4 @@
+import React from 'react'
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import TopNav from './components/TopNav'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -8,6 +9,8 @@ import DashboardPage from './pages/DashboardPage'
 import SettingsPage from './pages/SettingsPage'
 
 function App() {
+  
+
   return (
     <div className="app-root relative min-h-screen overflow-hidden bg-white text-slate-950 antialiased">
       <div className="pointer-events-none absolute inset-0">

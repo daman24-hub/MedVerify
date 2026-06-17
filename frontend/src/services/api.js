@@ -46,4 +46,9 @@ export const logScan = (lat, lng, medicine, result) =>
 export const checkInteractions = (medicines) => client.post('/api/interactions', { medicines })
 export const getHeatmap = () => client.get('/api/heatmap')
 
+export async function verifyMedicineByName(name) {
+  const response = await client.get('/api/verify', { params: { name } })
+  return response
+}
+
 export { BASE }
