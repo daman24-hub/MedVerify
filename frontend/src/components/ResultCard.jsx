@@ -8,10 +8,7 @@ const colours = {
 }
 
 function ResultCard({ result, onReset }) {
-	const theme = useMemo(
-		() => colours[result?.status] || colours.not_found,
-		[result?.status],
-	)
+	const theme = useMemo(() => colours[result?.status] || colours.not_found, [result?.status])
 
 	const hindiText = result?.hindiText || result?.hindi_message || ''
 
@@ -85,20 +82,14 @@ function ResultCard({ result, onReset }) {
 	const savings = Math.max(marketAverage - localPrice, 0)
 
 	return (
-		<section
-			id="result-card"
-			className="panel result-card"
-			style={{ background: theme.bg, borderColor: theme.border }}
-		>
+		<section id="result-card" className="panel result-card result-card--light" aria-live="polite">
 			<div className="result-hero">
-				<div className="result-icon" style={{ color: theme.border }}>
-					OK
-				</div>
+				<div className="result-icon" aria-hidden="true">OK</div>
 				<div className="result-hero-copy">
 					<p className="section-kicker">Verification result</p>
 					<div className="result-top">
-						<h2>{result?.medicine || 'Unknown medicine'}</h2>
-						<span className="status-pill" style={{ borderColor: theme.border }}>
+						<h2 className="result-title">{result?.medicine || 'Unknown medicine'}</h2>
+						<span className={`status-badge ${result?.status || ''}`} role="status">
 							{theme.label}
 						</span>
 					</div>
@@ -108,20 +99,20 @@ function ResultCard({ result, onReset }) {
 
 			<div className="detail-grid">
 				<article>
-					<span>Medicine</span>
-					<strong>{result?.medicine || 'Unknown medicine'}</strong>
+					<span className="label">Medicine</span>
+					<strong className="value">{result?.medicine || 'Unknown medicine'}</strong>
 				</article>
 				<article>
-					<span>Status</span>
-					<strong>{theme.label}</strong>
+					<span className="label">Status</span>
+					<strong className="value">{theme.label}</strong>
 				</article>
 				<article>
-					<span>OCR capture</span>
-					<strong>{result?.ocrText || 'No OCR text captured'}</strong>
+					<span className="label">OCR capture</span>
+					<strong className="value">{result?.ocrText || 'No OCR text captured'}</strong>
 				</article>
 				<article>
-					<span>Voice support</span>
-					<strong>{hindiText ? 'Hindi summary ready' : 'No Hindi summary yet'}</strong>
+					<span className="label">Voice support</span>
+					<strong className="value">{hindiText ? 'Hindi summary ready' : 'No Hindi summary yet'}</strong>
 				</article>
 			</div>
 
@@ -152,17 +143,17 @@ function ResultCard({ result, onReset }) {
 
 			{result?.advice ? <p className="advice">{result.advice}</p> : null}
 
-			<div className="action-row">
-				<button className="button primary" type="button" onClick={replay}>
+			<div className="action-row result-actions">
+				<button className="button button-secondary" type="button" onClick={replay} aria-label="Replay Hindi voice">
 					Replay Hindi Voice
 				</button>
-				<button className="button success" type="button" onClick={scheduleReminder}>
+				<button className="button button-cta" type="button" onClick={scheduleReminder} aria-label="Set reminder in 8 hours">
 					Remind In 8 Hours
 				</button>
-				<button className="button ghost" type="button" onClick={shareScreenshot}>
+				<button className="button button-ghost" type="button" onClick={shareScreenshot} aria-label="Share result">
 					Share Result
 				</button>
-				<button className="button" type="button" onClick={onReset}>
+				<button className="button button-secondary" type="button" onClick={onReset} aria-label="Scan another">
 					Scan Another
 				</button>
 			</div>

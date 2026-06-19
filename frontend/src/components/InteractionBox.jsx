@@ -9,6 +9,8 @@ function InteractionBox() {
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState('')
 	const [result, setResult] = useState(null)
+	const [verifyLoading, setVerifyLoading] = useState(false)
+	const [verifyResult, setVerifyResult] = useState(null)
 
 	const updateMedicine = (index, value) => {
 		const updated = [...medicines]

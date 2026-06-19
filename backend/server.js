@@ -20,6 +20,10 @@ app.use(express.json())
 
 await connectDB()
 
+app.get('/', (_req, res) => {
+	res.status(200).json({ message: 'Welcome to DawaCheck Backend API!' })
+})
+
 app.get('/health', (_req, res) => {
 	res.status(200).json({ ok: true, service: 'dawacheck-backend' })
 })
