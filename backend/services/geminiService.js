@@ -89,3 +89,38 @@ export const checkDrugInteractionsWithGemini = async (medicines) => {
 
 	return text || 'CAUTION: Could not compute interactions. Apne doctor se confirm karein (consult your doctor).'
 }
+
+export const verifyWithCsdco = async (ocrText, databaseMatch) => {
+	if (!client) {
+		return 'Safety verification service unavailable. Please set GEMINI_API_KEY.'
+	}
+
+	const databaseContext = databaseMatch 
+		? `Local Database Record Found: Name: ${databaseMatch.name}, Approved Status: ${databaseMatch.approvalStatus}, Composition: ${databaseMatch.genericName || 'N/A'}`
+		: 'No exact match found in local reference files.'
+
+	const systemInstruction = 
+		'You are an expert pharmaceutical verification assistant cross-referencing text with the Central Drugs Standard Control Organisation (CDSCO) regulations of India. Analyze the text for active chemical components, safety status, and compliance flags. Keep warnings objective and clear.'
+
+	const userPrompt = `
+Analyze the following medicine data from an OCR image scan:
+---
+Raw OCR Text: "${ocrText}"
+${databaseContext}
+---
+
+Provide a well-structured safety report including:
+1. CDSCO List Status: Is the identified composition approved, banned, or regulated under restricted categories in India?
+2. Risk Category: (Low / Moderate / High Risk)
+3. Direct Contraindications: Short safety constraints (e.g., interactions with alcohol, pregnancy, or driving).
+4. Pradhan Mantri Bhartiya Janaushadhi Pariyojana (PMBJP) Insight: Recommend looking for a generic formulation if an exact match is not transparently established.
+
+End explicitly with: "Disclaimer: Medical verification models provide informational guidance. Always cross-examine with a certified practitioner before dosage alteration."
+`
+
+	try {
+		return await generateText({ systemInstruction, userPrompt })
+	} catch (error) {
+		return 'Safety check service temporarily unavailable. Confirm composition with your pharmacist.'
+	}
+}

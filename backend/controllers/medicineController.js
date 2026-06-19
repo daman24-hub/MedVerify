@@ -25,11 +25,20 @@ export const verifyMedicine = async (req, res, next) => {
 			return res.status(400).json({ error: 'Query param name is required.' })
 		}
 
+		// Create case-insensitive regex for flexible matching
+		const searchRegex = new RegExp(rawName, 'i')
+
+		// Multi-field fuzzy search across name, genericName, and manufacturer
 		const drug = await Drug.findOne({
-			name: { $regex: rawName, $options: 'i' },
+			$or: [
+				{ name: { $regex: searchRegex } },
+				{ genericName: { $regex: searchRegex } },
+				{ manufacturer: { $regex: searchRegex } },
+			],
 		}).lean()
 
 		if (!drug) {
+			console.log(`[VERIFY] No match found for: "${rawName}"`)
 			return res.status(200).json({
 				status: 'not_found',
 				medicine: rawName,
@@ -40,6 +49,8 @@ export const verifyMedicine = async (req, res, next) => {
 					'Dawa database me nahi mili. Kripya pharmacist se confirm karein.',
 			})
 		}
+
+		console.log(`[VERIFY] Match found: "${rawName}" -> "${drug.name}"`)
 
 		const englishSummary = buildEnglishSummary(drug)
 		let hindiText =
