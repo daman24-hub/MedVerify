@@ -1009,6 +1009,10 @@ bottom: 40px;
 	background: rgba(255, 255, 255, 0.55);
 }
 
+.cta-glass-card .hero-cta {
+	align-self: center;
+}
+
 .cta-glass-card h2 {
 	margin: 0;
 	font-size: clamp(1.6rem, 4vw, 2.3rem);
