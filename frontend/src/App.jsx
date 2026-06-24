@@ -14,6 +14,7 @@ import VerifyMedicine from './components/VerifyMedicine'
 import About from './components/About'
 import Privacy from './components/Privacy'
 import { logScan, verifyMedicine, getCurrentUser, saveOcrResult } from './services/api'
+import './components/WelcomeScreen.css'
 
 const STREAK_KEY = 'medverify_scan_days'
 const EXPLORE_PATH = '/explore'
@@ -384,7 +385,7 @@ function App() {
 					onNavigate={handleNavigate}
 					currentPath={currentPath}
 				/>
-				<main style={{ flex: 1 }}>
+				<main className="welcome-site" style={{ flex: 1 }}>
 					<VerifyMedicine />
 				</main>
 				<AppFooter onNavigate={handleNavigate} />
@@ -396,7 +397,7 @@ function App() {
 		return (
 			<>
 				<AppHeader currentUser={currentUser} onLogout={handleLogout} onGetStarted={handleGetStarted} onNavigate={handleNavigate} currentPath={currentPath} />
-				<main style={{ flex: 1 }}><About /></main>
+				<main className="welcome-site" style={{ flex: 1 }}><About /></main>
 				<AppFooter onNavigate={handleNavigate} />
 			</>
 		)
@@ -406,7 +407,7 @@ function App() {
 		return (
 			<>
 				<AppHeader currentUser={currentUser} onLogout={handleLogout} onGetStarted={handleGetStarted} onNavigate={handleNavigate} currentPath={currentPath} />
-				<main style={{ flex: 1 }}><Privacy /></main>
+				<main className="welcome-site" style={{ flex: 1 }}><Privacy /></main>
 				<AppFooter onNavigate={handleNavigate} />
 			</>
 		)
@@ -422,7 +423,7 @@ function App() {
 					onNavigate={handleNavigate}
 					currentPath={currentPath}
 				/>
-				<main style={{ flex: 1 }}>
+				<main className="welcome-site" style={{ flex: 1 }}>
 					<Contact />
 				</main>
 				<AppFooter onNavigate={handleNavigate} />
@@ -440,7 +441,7 @@ function App() {
 					onNavigate={handleNavigate}
 					currentPath={currentPath}
 				/>
-				<main style={{ flex: 1, padding: '1.5rem 0 2rem' }}>
+				<main className="welcome-site" style={{ flex: 1, padding: '1.5rem 0 2rem' }}>
 					<InteractionBox />
 				</main>
 				<AppFooter onNavigate={handleNavigate} />
@@ -458,7 +459,7 @@ function App() {
 					onNavigate={handleNavigate}
 					currentPath={currentPath}
 				/>
-				<main style={{ flex: 1, padding: '1.5rem 0 2rem' }}>
+				<main className="welcome-site" style={{ flex: 1, padding: '1.5rem 0 2rem' }}>
 					<HeatMap />
 				</main>
 				<AppFooter onNavigate={handleNavigate} />
@@ -494,10 +495,12 @@ function App() {
 					onNavigate={handleNavigate}
 					currentPath={currentPath}
 				/>
-				<Login
-					onLoginSuccess={handleLoginSuccess}
-					onSwitchToSignup={() => setAuthMode('signup')}
-				/>
+				<main className="welcome-site" style={{ flex: 1 }}>
+					<Login
+						onLoginSuccess={handleLoginSuccess}
+						onSwitchToSignup={() => setAuthMode('signup')}
+					/>
+				</main>
 				<AppFooter onNavigate={handleNavigate} />
 			</>
 		)
@@ -513,10 +516,12 @@ function App() {
 					onNavigate={handleNavigate}
 					currentPath={currentPath}
 				/>
-				<Signup
-					onSignupSuccess={handleSignupSuccess}
-					onSwitchToLogin={() => setAuthMode('login')}
-				/>
+				<main className="welcome-site" style={{ flex: 1 }}>
+					<Signup
+						onSignupSuccess={handleSignupSuccess}
+						onSwitchToLogin={() => setAuthMode('login')}
+					/>
+				</main>
 				<AppFooter onNavigate={handleNavigate} />
 			</>
 		)
