@@ -1,4 +1,6 @@
 import { useEffect, useMemo } from 'react'
+import { showToast } from '../services/toast' // FIXED: import showToast
+import { updateVerifyStatus } from '../services/api' // FIXED: import updateVerifyStatus
 
 const colours = {
 	genuine: { bg: '#E1F5EE', border: '#0F6E56', label: 'Genuine' },
@@ -12,24 +14,29 @@ function ResultCard({ result, onReset }) {
 
 	const hindiText = result?.hindiText || result?.hindi_message || ''
 
-	useEffect(() => {
-		if (!hindiText || !window.speechSynthesis) return
-		window.speechSynthesis.cancel()
-		const utterance = new SpeechSynthesisUtterance(hindiText)
-		utterance.lang = 'hi-IN'
-		window.speechSynthesis.speak(utterance)
+	const speakText = (text, lang = 'hi-IN') => {
+		// FIXED: must be triggered by user gesture — never call on page load
+		const utterance = new SpeechSynthesisUtterance(text);
+		utterance.lang = lang;
+		utterance.rate = 0.9;
 
-		return () => {
-			window.speechSynthesis.cancel()
+		// Cancel any ongoing speech first
+		window.speechSynthesis.cancel();
+		window.speechSynthesis.speak(utterance);
+	};
+
+	const handleFeedback = async (verified) => {
+		// FIXED: submit verification review feedback to database
+		if (!result?.id) {
+			showToast('No database OCR record found for feedback.', 'error');
+			return;
 		}
-	}, [hindiText])
-
-	const replay = () => {
-		if (!hindiText || !window.speechSynthesis) return
-		window.speechSynthesis.cancel()
-		const utterance = new SpeechSynthesisUtterance(hindiText)
-		utterance.lang = 'hi-IN'
-		window.speechSynthesis.speak(utterance)
+		try {
+			await updateVerifyStatus(result.id, verified);
+			showToast(`Persisted verification feedback: ${verified ? 'Verified' : 'Rejected'}`, 'success');
+		} catch (err) {
+			showToast('Failed to persist verification status.', 'error');
+		}
 	}
 
 	const shareScreenshot = async () => {
@@ -143,9 +150,27 @@ function ResultCard({ result, onReset }) {
 
 			{result?.advice ? <p className="advice">{result.advice}</p> : null}
 
+			{/* FIXED: approve / reject buttons to persist verification feedback */}
+			<div className="verify-feedback-row" style={{ marginTop: '1.25rem', marginBottom: '1.25rem', display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+				<button 
+					type="button" 
+					onClick={() => handleFeedback(true)}
+					style={{ padding: '0.6rem 1.2rem', background: '#2ecc71', color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}
+				>
+					✓ Approve Verification
+				</button>
+				<button 
+					type="button" 
+					onClick={() => handleFeedback(false)}
+					style={{ padding: '0.6rem 1.2rem', background: '#e74c3c', color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem' }}
+				>
+					✗ Reject Verification
+				</button>
+			</div>
+
 			<div className="action-row result-actions">
-				<button className="button button-secondary" type="button" onClick={replay} aria-label="Replay Hindi voice">
-					Replay Hindi Voice
+				<button className="button button-secondary" type="button" onClick={() => speakText(hindiText, 'hi-IN')} aria-label="Listen Hindi voice">
+					🔊 सुनें (Listen) {/* FIXED: user click gesture speech check */}
 				</button>
 				<button className="button button-cta" type="button" onClick={scheduleReminder} aria-label="Set reminder in 8 hours">
 					Remind In 8 Hours

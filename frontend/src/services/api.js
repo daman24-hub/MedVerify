@@ -1,61 +1,57 @@
-import axios from 'axios'
-import { getToken, clearToken } from './auth'
-import { showToast } from './toast'
-
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000'
-
-const client = axios.create({
-  baseURL: BASE,
-  timeout: 12000,
-})
-
-// Add token to requests if available
-client.interceptors.request.use((config) => {
-	const token = localStorage.getItem('authToken')
-	if (token) {
-		config.headers.Authorization = `Bearer ${token}`
-	}
-	return config
-})
+// FIXED: all API calls go through this file — never inline fetch in components
+import api from '../api' // FIXED: use api instance
 
 export const register = (email, password, name) =>
-	client.post('/api/auth/register', { email, password, name })
+  api.post('/api/auth/register', { email, password, name }) // FIXED: use api instance
 
 export const login = (email, password) =>
-	client.post('/api/auth/login', { email, password })
+  api.post('/api/auth/login', { email, password }) // FIXED: use api instance
 
-export const getCurrentUser = () => client.get('/api/auth/me')
+export const getCurrentUser = () =>
+  api.get('/api/auth/me') // FIXED: use api instance
 
 export const verifyMedicine = (name) =>
-	client.get('/api/verify', { params: { name } })
+  api.get(`/api/verify`, { params: { name } }) // FIXED: use api instance
 
-client.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (!error.response) {
-      showToast('Network error. Check your connection.', 'error')
-    } else if (error.response.status === 401) {
-      clearToken()
-      showToast('Session expired. Please log in again.', 'error')
-    }
-    return Promise.reject(error)
-  },
-)
+export const loginUser = (credentials) =>
+  api.post('/api/auth/login', credentials) // FIXED: use api instance
 
-export const loginUser = (credentials) => client.post('/api/auth/login', credentials)
-export const registerUser = (credentials) => client.post('/api/auth/register', credentials)
-export const getUserProfile = () => client.get('/api/auth/profile')
-export const updateUserProfile = (body) => client.put('/api/auth/profile', body)
-export const verifyMedicine = (name) => client.get('/api/verify', { params: { name } })
+export const registerUser = (credentials) =>
+  api.post('/api/auth/register', credentials) // FIXED: use api instance
+
+export const getUserProfile = () =>
+  api.get('/api/auth/profile') // FIXED: use api instance
+
+export const updateUserProfile = (body) =>
+  api.put('/api/auth/profile', body) // FIXED: use api instance
+
 export const logScan = (lat, lng, medicine, result) =>
-  client.post('/api/scan-log', { lat, lng, medicine, result })
-export const checkInteractions = (medicines) => client.post('/api/interactions', { medicines })
-export const getHeatmap = () => client.get('/api/heatmap')
+  api.post('/api/scan-log', { lat, lng, medicine, result }) // FIXED: use api instance
 
-export async function verifyMedicineByName(name) {
-  const response = await client.get('/api/verify', { params: { name } })
-  return response
-}
+export const checkInteractions = (medicines) =>
+  api.post('/api/interactions', { medicines }) // FIXED: use api instance
 
-export { BASE }
+export const getHeatmapData = () =>
+  api.get('/api/heatmap') // FIXED: use api instance
 
+export const getHeatmap = getHeatmapData
+
+export const getHealthStatus = () =>
+  api.get('/api/health') // FIXED: use api instance
+
+export const verifyMedicineByName = verifyMedicine
+
+export const saveOcrResult = (userId, text) =>
+  api.post('/api/ocr', { userId, text }) // FIXED: save OCR result
+
+export const getOcrResults = () =>
+  api.get('/api/ocr') // FIXED: get OCR results
+
+export const updateVerifyStatus = (id, verified) =>
+  api.post('/api/verify', { id, verified }) // FIXED: update verify status
+
+export const verifyMedicineByImage = (base64Image, userId = 'guest') =>
+  api.post('/api/verify-image', { image: base64Image, userId })
+
+export const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+export { BASE_URL as BASE }

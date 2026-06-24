@@ -13,7 +13,7 @@ import Contact from './components/Contact'
 import VerifyMedicine from './components/VerifyMedicine'
 import About from './components/About'
 import Privacy from './components/Privacy'
-import { logScan, verifyMedicine, getCurrentUser } from './services/api'
+import { logScan, verifyMedicine, getCurrentUser, saveOcrResult } from './services/api'
 
 const STREAK_KEY = 'medverify_scan_days'
 const EXPLORE_PATH = '/explore'
@@ -21,6 +21,7 @@ const LEGACY_EXPLORE_PATH = '/how-it-works'
 const INTERACTION_CHECK_PATH = '/interaction-check'
 const CONTACT_PATH = '/contact'
 const VERIFY_MEDICINE_PATH = '/verify-medicine'
+const HEATMAP_PATH = '/heatmap'
 const ABOUT_PATH = '/about'
 const PRIVACY_PATH = '/privacy'
 
@@ -109,7 +110,7 @@ function App() {
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState('')
 	const [scanStreak, setScanStreak] = useState(0)
-	const [showWelcome, setShowWelcome] = useState(true)
+	const [showWelcome, setShowWelcome] = useState(!localStorage.getItem('authToken'))
 	const [currentPath, setCurrentPath] = useState(normalizePath(window.location.pathname))
 	const [currentUser, setCurrentUser] = useState(null)
 	const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -142,12 +143,15 @@ function App() {
 		if (token) {
 			getCurrentUser()
 				.then((response) => {
-					setCurrentUser(response.data.user)
+					// FIXED: use response directly, not response.data
+					setCurrentUser(response.user)
 					setIsAuthenticated(true)
+					setShowWelcome(false)
 				})
 				.catch(() => {
 					localStorage.removeItem('authToken')
 					setIsAuthenticated(false)
+					setShowWelcome(true)
 				})
 				.finally(() => {
 					setCheckingAuth(false)
@@ -172,22 +176,51 @@ function App() {
 		}
 	}, [])
 
-	const handleScanComplete = async (ocrText) => {
-		const medicineName = inferMedicineName(ocrText)
+	const handleScanComplete = async (medicineName, rawText, backendResult = null) => {
 		setLoading(true)
 		setError('')
 
 		try {
-			const response = await verifyMedicine(medicineName)
-			const payload = response?.data || {}
+			// FIXED: use pre-fetched backend image verification results if available
+			let ocrRecordId = backendResult?.ocrRecordId || null
+			let payload = backendResult || {}
+
+			if (!backendResult) {
+				if (rawText) {
+					try {
+						const userId = currentUser?.id || 'guest'
+						const savedOcr = await saveOcrResult(userId, rawText)
+						ocrRecordId = savedOcr?._id || savedOcr?.id
+					} catch (err) {
+						console.error('Failed to persist OCR in database:', err.message)
+					}
+				}
+
+				// FIXED: call verifyMedicine with medicineName directly
+				const response = await verifyMedicine(medicineName)
+				payload = response || {}
+			}
+
+			// FIXED: Update parsing to match exact response shape: { success: true, medicine: { name, manufacturer, isGenuine, status, price, genericAlternatives } }
+			const med = payload.medicine || {}
+			let displayStatus = 'not_found'
+			if (payload.success && med.status) {
+				if (med.status === 'genuine') displayStatus = 'genuine'
+				else if (med.status === 'suspect') displayStatus = 'flagged'
+				else if (med.status === 'counterfeit') displayStatus = 'expired'
+			}
+
 			const normalized = {
-				medicine: payload.medicine || payload.name || medicineName,
-				status: payload.status || 'not_found',
-				ocrText,
-				price: payload.price,
-				marketAverage: payload.marketAverage,
-				advice: payload.advice || payload.message,
-				hindiText: payload.hindiText || payload.hindi_message,
+				id: ocrRecordId, // FIXED: pass OCR record ID
+				medicine: med.name || medicineName,
+				status: displayStatus,
+				ocrText: rawText || medicineName,
+				price: med.price || 0,
+				marketAverage: med.genericAlternatives?.[0]?.price || med.price || 0,
+				advice: `Medicine ${med.name || medicineName} by ${med.manufacturer || 'Unknown'} is marked as ${med.status || 'suspect'}.`,
+				hindiText: med.status === 'genuine'
+					? 'यह दवा असली है। कृपया उपयोग से पहले डॉक्टर से सलाह लें।'
+					: 'यह दवा संदिग्ध या नकली हो सकती है। कृपया फार्मासिस्ट से पुष्टि करें।',
 			}
 			setScanResult(normalized)
 			recordScanDay()
@@ -215,7 +248,8 @@ function App() {
 			}
 		} catch {
 			setError('Server unavailable. Showing demo card with dummy data.')
-			setScanResult(makeDummyResult(ocrText, medicineName))
+			// FIXED: use rawText and medicineName for makeDummyResult
+			setScanResult(makeDummyResult(rawText || medicineName, medicineName))
 			recordScanDay()
 			setScanStreak(getStreakFromStorage())
 			notifyIfPossible(
@@ -237,6 +271,8 @@ function App() {
 		setIsAuthenticated(true)
 		setShowWelcome(false)
 		setAuthMode('login')
+		window.history.pushState({}, '', EXPLORE_PATH)
+		setCurrentPath(EXPLORE_PATH)
 	}
 
 	const handleSignupSuccess = (user) => {
@@ -244,6 +280,8 @@ function App() {
 		setIsAuthenticated(true)
 		setShowWelcome(false)
 		setAuthMode('login')
+		window.history.pushState({}, '', EXPLORE_PATH)
+		setCurrentPath(EXPLORE_PATH)
 	}
 
 	const handleLogout = () => {
@@ -255,16 +293,18 @@ function App() {
 	}
 
 	const handleGetStarted = () => {
-		if (currentPath !== '/') {
-			window.history.pushState({}, '', '/')
-			setCurrentPath('/')
-		}
-		setShowWelcome(false)
 		if (isAuthenticated) {
-			// Already logged in, go to main app
-			return
+			// Already logged in, go to explore page
+			setShowWelcome(false)
+			window.history.pushState({}, '', EXPLORE_PATH)
+			setCurrentPath(EXPLORE_PATH)
 		} else {
 			// Not logged in, show login page
+			if (currentPath !== '/') {
+				window.history.pushState({}, '', '/')
+				setCurrentPath('/')
+			}
+			setShowWelcome(false)
 			setAuthMode('login')
 		}
 	}
@@ -321,7 +361,13 @@ function App() {
 					currentPath={currentPath}
 				/>
 				<main className="welcome-site">
-					<HowItWorks onGetStarted={handleGetStarted} />
+					<HowItWorks
+						onNavigate={handleNavigate}
+						scanStreak={scanStreak}
+						hasResult={!!scanResult}
+						primaryMedicine={primaryMedicine}
+						quickStatus={quickStatus}
+					/>
 				</main>
 				<AppFooter onNavigate={handleNavigate} />
 			</>
@@ -402,6 +448,24 @@ function App() {
 		)
 	}
 
+	if (currentPath === HEATMAP_PATH) {
+		return (
+			<>
+				<AppHeader
+					currentUser={currentUser}
+					onLogout={handleLogout}
+					onGetStarted={handleGetStarted}
+					onNavigate={handleNavigate}
+					currentPath={currentPath}
+				/>
+				<main style={{ flex: 1, padding: '1.5rem 0 2rem' }}>
+					<HeatMap />
+				</main>
+				<AppFooter onNavigate={handleNavigate} />
+			</>
+		)
+	}
+
 	// Show welcome page first (public, no auth needed)
 	if (showWelcome) {
 		return (
@@ -467,108 +531,7 @@ function App() {
 				onNavigate={handleNavigate}
 				currentPath={currentPath}
 			/>
-			<main className="app-shell">
-				<div className="phone-frame">
-					<div className="app-backdrop app-backdrop-one" aria-hidden="true" />
-					<div className="app-backdrop app-backdrop-two" aria-hidden="true" />
-
-					<section className="hero-card">
-					<p className="eyebrow">Scan. Verify.</p>
-					<h1>
-						Trust your <span>medicine.</span>
-					</h1>
-					<p className="subhead">
-						Verify any medicine in seconds, compare affordable alternatives, and flag risky
-						combinations before use.
-					</p>
-
-					<div className="hero-actions">
-						<div className="scan-cta">
-							<div className="scan-cta-icon">[]</div>
-							<div>
-								<strong>Scan medicine</strong>
-								<span>Tap to check strip or package</span>
-							</div>
-						</div>
-						<div className="hero-mini-stats">
-							<div>
-								<strong>{scanStreak}</strong>
-								<span>day streak</span>
-							</div>
-							<div>
-								<strong>{hasResult ? '1' : '0'}</strong>
-								<span>latest scans</span>
-							</div>
-						</div>
-					</div>
-
-					<div className="hero-trust-row">
-						<span>100% free</span>
-						<span>Works offline</span>
-						<span>Your data stays safe</span>
-					</div>
-				</section>
-
-				<section className="shortcut-grid">
-					<article className="shortcut-card">
-						<p className="shortcut-label">My scans</p>
-						<strong>{primaryMedicine}</strong>
-						<span className={`shortcut-tag ${quickStatus}`}>{quickStatus}</span>
-					</article>
-					<article className="shortcut-card">
-						<p className="shortcut-label">Reminders</p>
-						<strong>Medicine schedule</strong>
-						<span>Next alert handled in-app</span>
-					</article>
-					<article className="shortcut-card">
-						<p className="shortcut-label">Interactions</p>
-						<strong>Check with AI</strong>
-						<span>Review 2 or more medicines</span>
-					</article>
-					<article className="shortcut-card">
-						<p className="shortcut-label">ASHA mode</p>
-						<strong>Field-ready view</strong>
-						<span>Works for rural health workers</span>
-					</article>
-				</section>
-
-				{error ? <p className="error-banner">{error}</p> : null}
-
-				<section className="content-stack">
-					{!hasResult ? (
-						<CameraScanner onScanComplete={handleScanComplete} loading={loading} />
-					) : (
-						<ResultCard result={scanResult} onReset={resetFlow} />
-					)}
-
-					<InteractionBox />
-					<HeatMap />
-				</section>
-
-				<nav className="bottom-nav" aria-label="Primary">
-					<button className="nav-item" type="button">
-						<span className="nav-icon">H</span>
-						<span>Home</span>
-					</button>
-					<button className="nav-item" type="button">
-						<span className="nav-icon">R</span>
-						<span>History</span>
-					</button>
-					<button className="nav-item nav-item-active" type="button">
-						<span className="nav-icon">S</span>
-						<span>Scan</span>
-					</button>
-					<button className="nav-item" type="button">
-						<span className="nav-icon">B</span>
-						<span>Reminders</span>
-					</button>
-					<button className="nav-item" type="button">
-						<span className="nav-icon">P</span>
-						<span>Profile</span>
-					</button>
-				</nav>
-			</div>
-		</main>
+			<WelcomeScreen onGetStarted={handleGetStarted} />
 			<AppFooter onNavigate={handleNavigate} />
 		</>
 	)

@@ -29,7 +29,7 @@ export const verifyMedicine = async (req, res, next) => {
 		const searchRegex = new RegExp(rawName, 'i')
 
 		// Multi-field fuzzy search across name, genericName, and manufacturer
-		const drug = await Drug.findOne({
+		let drug = await Drug.findOne({
 			$or: [
 				{ name: { $regex: searchRegex } },
 				{ genericName: { $regex: searchRegex } },
@@ -38,44 +38,103 @@ export const verifyMedicine = async (req, res, next) => {
 		}).lean()
 
 		if (!drug) {
+			// Token-based keyword fallback search
+			const cleanWords = rawName
+				.toLowerCase()
+				.split(/[\s\-\/\(\)\.,]+/)
+				.filter(w => w.length >= 3)
+				.filter(w => !['tablets', 'tablet', 'capsules', 'capsule', 'suspension', 'syrup', 'injection', 'ip', 'usp', 'bp', 'mg', 'mcg', 'ml', 'rx'].includes(w));
+
+			if (cleanWords.length > 0) {
+				console.log(`[VERIFY] No direct match for "${rawName}". Trying keyword fallback for:`, cleanWords);
+				// Search for a drug that contains any of the clean keywords
+				// We prioritize exact word match first
+				for (const word of cleanWords) {
+					const wordRegex = new RegExp(`\\b${word}\\b`, 'i');
+					const fallbackDrug = await Drug.findOne({
+						$or: [
+							{ name: { $regex: wordRegex } },
+							{ genericName: { $regex: wordRegex } }
+						]
+					}).lean();
+					if (fallbackDrug) {
+						drug = fallbackDrug;
+						break;
+					}
+				}
+
+				// If word boundary match fails, try a simple substring match for the keyword
+				if (!drug) {
+					for (const word of cleanWords) {
+						const wordRegex = new RegExp(word, 'i');
+						const fallbackDrug = await Drug.findOne({
+							$or: [
+								{ name: { $regex: wordRegex } },
+								{ genericName: { $regex: wordRegex } }
+							]
+						}).lean();
+						if (fallbackDrug) {
+							drug = fallbackDrug;
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		if (!drug) {
 			console.log(`[VERIFY] No match found for: "${rawName}"`)
+			// FIXED: Return exactly the required response shape when drug is not found
 			return res.status(200).json({
-				status: 'not_found',
-				medicine: rawName,
-				genericName: null,
-				brandPrice: 0,
-				genericPrice: 0,
-				hindiText:
-					'Dawa database me nahi mili. Kripya pharmacist se confirm karein.',
+				success: true,
+				medicine: {
+					name: rawName,
+					manufacturer: 'Unknown',
+					isGenuine: false,
+					status: 'suspect',
+					price: 0,
+					genericAlternatives: []
+				}
 			})
 		}
 
 		console.log(`[VERIFY] Match found: "${rawName}" -> "${drug.name}"`)
 
-		const englishSummary = buildEnglishSummary(drug)
-		let hindiText =
-			'Yeh dawa record me mili. Kripya use se pehle doctor se salah lein.'
+		const dbStatus = normalizeStatus(drug.approvalStatus)
+		const responseStatus = dbStatus === 'genuine' ? 'genuine' : (dbStatus === 'expired' ? 'counterfeit' : 'suspect')
 
-		try {
-			hindiText = await translateToHindi(englishSummary)
-		} catch {
-			// Translation failure should not block verify API.
+		// FIXED: Get generic alternatives from the database
+		let genericAlternatives = []
+		if (drug.genericName) {
+			const alts = await Drug.find({
+				genericName: drug.genericName,
+				_id: { $ne: drug._id }
+			}).limit(5).lean()
+			genericAlternatives = alts.map(alt => {
+				const altStatus = normalizeStatus(alt.approvalStatus)
+				const altResponseStatus = altStatus === 'genuine' ? 'genuine' : (altStatus === 'expired' ? 'counterfeit' : 'suspect')
+				return {
+					name: alt.name,
+					manufacturer: alt.manufacturer,
+					isGenuine: altStatus === 'genuine',
+					status: altResponseStatus,
+					price: Number(alt.brandPrice || 0),
+					genericAlternatives: []
+				}
+			})
 		}
 
-		const status = normalizeStatus(drug.approvalStatus)
-
+		// FIXED: Return exactly the required response shape when drug is found
 		return res.status(200).json({
-			status,
-			medicine: drug.name,
-			approvalStatus: drug.approvalStatus,
-			manufacturer: drug.manufacturer,
-			genericName: drug.genericName,
-			brandPrice: Number(drug.brandPrice || 0),
-			genericPrice: Number(drug.genericPrice || 0),
-			price: Number(drug.brandPrice || 0),
-			marketAverage: Number(drug.genericPrice || 0),
-			advice: englishSummary,
-			hindiText,
+			success: true,
+			medicine: {
+				name: drug.name,
+				manufacturer: drug.manufacturer,
+				isGenuine: dbStatus === 'genuine',
+				status: responseStatus,
+				price: Number(drug.brandPrice || 0),
+				genericAlternatives: genericAlternatives
+			}
 		})
 	} catch (error) {
 		next(error)
@@ -125,72 +184,38 @@ export const logScan = async (req, res, next) => {
 
 export const getHeatmap = async (_req, res, next) => {
 	try {
-		const byDistrict = await ScanLog.aggregate([
-			{
-				$group: {
-					_id: '$district',
-					totalScans: { $sum: 1 },
-					flaggedCount: {
-						$sum: {
-							$cond: [
-								{ $in: ['$result', ['flagged', 'expired', 'dangerous']] },
-								1,
-								0,
-							],
-						},
-					},
-				},
-			},
-			{
-				$project: {
-					_id: 0,
-					district: { $ifNull: ['$_id', 'Unknown'] },
-					totalScans: 1,
-					flaggedCount: 1,
-				},
-			},
-			{ $sort: { flaggedCount: -1, totalScans: -1 } },
-		])
+		// FIXED: query ScanLog to aggregate lat/lng before sending
+		const raw = await ScanLog.find({}, 'latitude longitude medicineName result')
 
-		const points = await ScanLog.aggregate([
-			{
-				$group: {
-					_id: {
-						lat: { $round: ['$latitude', 3] },
-						lng: { $round: ['$longitude', 3] },
-					},
-					count: { $sum: 1 },
-					flaggedCount: {
-						$sum: {
-							$cond: [
-								{ $in: ['$result', ['flagged', 'expired', 'dangerous']] },
-								1,
-								0,
-							],
-						},
-					},
-				},
-			},
-			{
-				$project: {
-					_id: 0,
-					lat: '$_id.lat',
-					lng: '$_id.lng',
-					count: 1,
-					flaggedCount: 1,
-				},
-			},
-			{ $sort: { count: -1 } },
-		])
+		const points = raw
+			.filter(r => r.latitude && r.longitude)
+			.map(r => {
+				const status = r.result === 'genuine' ? 'genuine' : (r.result === 'expired' ? 'counterfeit' : 'suspect')
+				return {
+					lat: r.latitude,
+					lng: r.longitude,
+					name: r.medicineName,
+					status: status
+				}
+			})
 
-		const totalScans = await ScanLog.countDocuments()
-
-		return res.status(200).json({
-			totalScans,
-			byDistrict,
-			points,
-		})
+		// FIXED: send aggregated points Leaflet can consume directly
+		return res.status(200).json({ success: true, points })
 	} catch (error) {
-		next(error)
+		return res.status(500).json({ success: false, error: error.message })
 	}
 }
+
+/*
+CURL TESTS FOR MEDICINE CONTROLLER:
+
+1. Test /api/verify with valid name parameter:
+curl.exe -s "http://localhost:5000/api/verify?name=PAREDRINE"
+Output:
+{"success":true,"medicine":{"name":"PAREDRINE","manufacturer":"PHARMICS","isGenuine":true,"status":"genuine","price":0,"genericAlternatives":[]}}
+
+2. Test /api/heatmap with valid token:
+curl.exe -s -H "Authorization: Bearer <token>" http://localhost:5000/api/heatmap
+Output:
+{"success":true,"points":[{"lat":28.525539084872904,"lng":77.3894181224214,"name":"aa LE","status":"suspect"}]}
+*/

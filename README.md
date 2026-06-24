@@ -4,6 +4,28 @@ DawaCheck is a hackathon-ready medicine verification app for the SWASTHYA theme.
 It provides OCR-based strip scanning, authenticity lookup, Hindi voice guidance,
 interaction risk checks, and a counterfeit trend heatmap.
 
+## Screenshots
+
+| Home | Scan | Result | Heatmap |
+|------|------|--------|---------|
+| ![Home](docs/screenshot-home.png) | ![Scan](docs/screenshot-scan.png) | ![Result](docs/screenshot-result.png) | ![Heatmap](docs/screenshot-heatmap.png) |
+
+## Demo
+
+> 🎥 [Watch demo video](#) — replace this link with your YouTube/Loom URL
+
+## Quick Start
+
+```bash
+# Backend
+cd backend && npm install && npm run dev
+
+# Frontend
+cd frontend && npm install && npm run dev
+```
+
+> Copy `frontend/.env.example` to `frontend/.env` and fill in your values before running.
+
 ## Team Roles
 
 - Person 1: Backend API, MongoDB data pipeline, AI logic, endpoint contracts

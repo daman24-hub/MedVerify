@@ -16,10 +16,12 @@ export default function Login({ onLoginSuccess, onSwitchToSignup }) {
 
 		try {
 			const response = await login(email, password)
-			localStorage.setItem('authToken', response.data.token)
-			onLoginSuccess(response.data.user)
+			// FIXED: parse fetch response directly without response.data
+			localStorage.setItem('authToken', response.token)
+			onLoginSuccess(response.user)
 		} catch (err) {
-			setError(err.response?.data?.error || 'Login failed')
+			// FIXED: handle fetch error message
+			setError(err.message || 'Login failed')
 		} finally {
 			setLoading(false)
 		}

@@ -12,6 +12,7 @@ export default defineConfig({
 			filename: 'sw.js',
 			devOptions: {
 				enabled: true,
+				type: 'module',
 			},
 			manifest: {
 				name: 'MedVerify',
@@ -29,5 +30,22 @@ export default defineConfig({
 	server: {
 		host: true,
 		port: 5173,
+		// FIXED: Proxy config using env target
+		proxy: {
+			'/api': {
+				target: process.env.VITE_API_URL || 'http://localhost:5000',
+				changeOrigin: true
+			}
+		}
 	},
+	// FIXED: Automatically strip console logs on production builds
+	build: {
+		minify: 'terser',
+		terserOptions: {
+			compress: {
+				drop_console: true,  // FIXED: strip all console.log in prod build
+				drop_debugger: true
+			}
+		}
+	}
 })

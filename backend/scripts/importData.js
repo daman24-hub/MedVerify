@@ -73,43 +73,80 @@ const mapRowToDrug = (row) => {
 		entry[target] = resolveField(row, aliases)
 	}
 
-	const name = String(entry.name || '').trim()
+	let name = String(entry.name || '').trim()
+	if (!name && entry.genericName) {
+		name = String(entry.genericName).trim()
+	}
+
 	if (!name) return null
+
+	let manufacturer = String(entry.manufacturer || '').trim()
+	if (!manufacturer && (row.drug_code || row.group_name)) {
+		manufacturer = 'PMBJP (Jan Aushadhi)'
+	}
+	if (!manufacturer) {
+		manufacturer = 'Unknown'
+	}
+
+	let approvalStatus = String(entry.approvalStatus || '').trim()
+	if (!approvalStatus && (row.drug_code || row.group_name)) {
+		approvalStatus = 'Approved'
+	}
+	if (!approvalStatus) {
+		approvalStatus = 'flagged'
+	}
+
+	const brandPrice = toNumber(entry.brandPrice)
+	const genericPrice = toNumber(entry.genericPrice)
 
 	return {
 		name,
-		manufacturer: String(entry.manufacturer || 'Unknown').trim(),
-		approvalStatus: String(entry.approvalStatus || 'flagged').trim(),
-		genericName: String(entry.genericName || '').trim(),
-		brandPrice: toNumber(entry.brandPrice),
-		genericPrice: toNumber(entry.genericPrice),
+		manufacturer,
+		approvalStatus,
+		genericName: String(entry.genericName || name).trim(),
+		brandPrice: brandPrice || genericPrice,
+		genericPrice: genericPrice || brandPrice,
 	}
 }
 
 const run = async () => {
-	await connectDB()
-
-	const cdscoPath = path.join(DATA_DIR, 'cdsco.csv')
-	const janAushadhiPath = path.join(DATA_DIR, 'jan_aushadhi.csv')
-
-	const [cdscoRows, janRows] = await Promise.all([readCsv(cdscoPath), readCsv(janAushadhiPath)])
-	const cdscoDocs = cdscoRows.map(mapRowToDrug).filter(Boolean)
-	const janDocs = janRows.map(mapRowToDrug).filter(Boolean)
-	const docs = [...cdscoDocs, ...janDocs]
-
-	if (docs.length === 0) {
-		console.log('No data imported. Add cdsco.csv and jan_aushadhi.csv in backend/data.')
-		process.exit(0)
+	// FIXED: Support multiple CSV file path arguments
+	const csvPaths = process.argv.slice(2);
+	if (csvPaths.length === 0) {
+		console.log("Usage: node importData.js <path-to-csv-1> <path-to-csv-2> ...");
+		process.exit(1);
 	}
 
-	await Drug.deleteMany({})
-	await Drug.insertMany(docs, { ordered: false })
+	try {
+		// FIXED: Wrap existing import logic in try/catch
+		await connectDB()
 
-	console.log(`Imported ${docs.length} records into Drug collection.`)
-	process.exit(0)
+		let allDocs = []
+		for (const csvPath of csvPaths) {
+			console.log(`Reading and parsing CSV: ${csvPath}...`)
+			const rows = await readCsv(csvPath)
+			const docs = rows.map(mapRowToDrug).filter(Boolean)
+			console.log(`Found ${docs.length} valid drug records in ${csvPath}`)
+			allDocs.push(...docs)
+		}
+
+		if (allDocs.length === 0) {
+			console.log('No data found in the specified CSV files.')
+			process.exit(0)
+		}
+
+		console.log(`Wiping existing Drug collection...`)
+		await Drug.deleteMany({})
+
+		console.log(`Inserting ${allDocs.length} total drug records...`)
+		await Drug.insertMany(allDocs, { ordered: false })
+
+		console.log(`✅ Import complete — ${allDocs.length} records inserted`);
+		process.exit(0);
+	} catch (err) {
+		console.error('❌ Import failed:', err.message);
+		process.exit(1);
+	}
 }
 
-run().catch((error) => {
-	console.error('Import failed:', error.message)
-	process.exit(1)
-})
+run()

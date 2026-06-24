@@ -39,7 +39,7 @@ function InteractionBox() {
 		setError('')
 		try {
 			const response = await checkInteractions(filled)
-			setResult(response.data)
+			setResult(response) // FIXED: parse response directly as axios returns response.data directly
 		} catch {
 			setResult({
 				safe: false,
@@ -55,7 +55,7 @@ function InteractionBox() {
 	const riskLevel = result
 		? result.safe
 			? 'safe'
-			: result.level === 'high' || result.level === 'flagged'
+			: result.level === 'high' || result.level === 'flagged' || result.level === 'expired' // FIXED: support expired/dangerous level
 				? 'high'
 				: 'moderate'
 		: null

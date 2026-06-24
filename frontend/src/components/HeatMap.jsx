@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CircleMarker, MapContainer, Popup, TileLayer } from 'react-leaflet'
-import { getHeatmap } from '../services/api'
+import { getHeatmapData } from '../services/api'
+import 'leaflet/dist/leaflet.css'; // FIXED: without this, tiles render but controls are broken
 
 function normalizePoints(payload) {
 	if (Array.isArray(payload)) return payload
@@ -24,10 +25,11 @@ export default function HeatMap() {
 	useEffect(() => {
 		let cancelled = false
 
-		getHeatmap()
+		getHeatmapData()
 			.then((response) => {
 				if (cancelled) return
-				const list = normalizePoints(response?.data).map(normalizeEntry)
+				// FIXED: parse fetch response directly without response.data
+				const list = normalizePoints(response).map(normalizeEntry)
 				setPoints(list)
 				setError('')
 			})

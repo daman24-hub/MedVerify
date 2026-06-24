@@ -96,3 +96,90 @@
 .vm-rescan-btn:hover {
 	background: #edf7f0;
 }
+
+/* Controls Card */
+.vm-controls-card {
+	background: #ffffff;
+	border: 1px solid #dde9e3;
+	border-radius: 22px;
+	padding: 1.5rem;
+	box-shadow: 0 10px 24px rgba(21, 59, 38, 0.08);
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	gap: 1.25rem;
+}
+
+.vm-search-form {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.vm-search-input {
+	flex: 1;
+	border: 1.5px solid #dde9e3;
+	border-radius: 12px;
+	padding: 0.75rem 1rem;
+	font-size: 0.95rem;
+	font-family: inherit;
+	color: #132b20;
+	background: #fbfdfc;
+	transition: all 0.2s ease;
+	outline: none;
+}
+
+.vm-search-input:focus {
+	border-color: #158448;
+	background: #ffffff;
+	box-shadow: 0 0 0 3px rgba(21, 132, 72, 0.15);
+}
+
+.vm-search-btn {
+	background: linear-gradient(135deg, #16a34a, #047857);
+	color: white;
+	border: none;
+	padding: 0.75rem 1.25rem;
+	border-radius: 12px;
+	font-size: 0.9rem;
+	font-weight: 700;
+	cursor: pointer;
+	box-shadow: 0 4px 10px rgba(22, 163, 74, 0.2);
+	transition: all 0.2s ease;
+	white-space: nowrap;
+}
+
+.vm-search-btn:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 6px 14px rgba(22, 163, 74, 0.3);
+	background: linear-gradient(135deg, #22c55e, #06b6d4);
+}
+
+.vm-search-btn:active {
+	transform: translateY(0);
+}
+
+/* Divider */
+.vm-divider {
+	display: flex;
+	align-items: center;
+	text-align: center;
+	color: #8fa095;
+	font-size: 0.74rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+}
+
+.vm-divider::before,
+.vm-divider::after {
+	content: '';
+	flex: 1;
+	border-bottom: 1px solid #e9f0ec;
+}
+
+.vm-divider::before {
+	margin-right: .75em;
+}
+
+.vm-divider::after {
+	margin-left: .75em;
+}

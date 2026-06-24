@@ -148,7 +148,7 @@
 	}
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
 	.header-container {
 		gap: 0.75rem;
 	}

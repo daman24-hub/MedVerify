@@ -10,6 +10,7 @@ export default function AppHeader({ currentUser, onLogout, onGetStarted, onNavig
 		{ label: 'Explore', href: '/explore' },
 		{ label: 'Verify Medicine', href: '/verify-medicine' },
 		{ label: 'Interaction Check', href: '/interaction-check' },
+		{ label: 'Counterfeit Heatmap', href: '/heatmap' },
 		{ label: 'Contact', href: '/contact' },
 	]
 

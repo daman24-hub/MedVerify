@@ -76,22 +76,33 @@ export default function DashboardPage() {
     setScanStreak(getStreakFromStorage())
   }, [])
 
-  const handleScanComplete = async (ocrText) => {
-    const medicineName = inferMedicineName(ocrText)
+  const handleScanComplete = async (medicineName, rawText) => {
     setLoading(true)
     setError('')
 
     try {
+      // FIXED: call verifyMedicine with medicineName directly
       const response = await verifyMedicine(medicineName)
-      const payload = response?.data || {}
+      // FIXED: Update parsing to match exact response shape: { success: true, medicine: { name, manufacturer, isGenuine, status, price, genericAlternatives } }
+      const payload = response || {}
+      const med = payload.medicine || {}
+      let displayStatus = 'not_found'
+      if (payload.success && med.status) {
+        if (med.status === 'genuine') displayStatus = 'genuine'
+        else if (med.status === 'suspect') displayStatus = 'flagged'
+        else if (med.status === 'counterfeit') displayStatus = 'expired'
+      }
+
       const normalized = {
-        medicine: payload.medicine || payload.name || medicineName,
-        status: payload.status || 'not_found',
-        ocrText,
-        price: payload.price,
-        marketAverage: payload.marketAverage,
-        advice: payload.advice || payload.message,
-        hindiText: payload.hindiText || payload.hindi_message,
+        medicine: med.name || medicineName,
+        status: displayStatus,
+        ocrText: rawText || medicineName,
+        price: med.price || 0,
+        marketAverage: med.genericAlternatives?.[0]?.price || med.price || 0,
+        advice: `Medicine ${med.name || medicineName} by ${med.manufacturer || 'Unknown'} is marked as ${med.status || 'suspect'}.`,
+        hindiText: med.status === 'genuine'
+          ? 'यह दवा असली है। कृपया उपयोग से पहले डॉक्टर से सलाह लें।'
+          : 'यह दवा संदिग्ध या नकली हो सकती है। कृपया फार्मासिस्ट से पुष्टि करें।',
       }
       setScanResult(normalized)
       recordScanDay()
@@ -115,7 +126,8 @@ export default function DashboardPage() {
       }
     } catch (apiError) {
       setError('Server unavailable. Displaying demo scan result.')
-      setScanResult(makeDummyResult(ocrText, medicineName))
+      // FIXED: use rawText and medicineName for makeDummyResult
+      setScanResult(makeDummyResult(rawText || medicineName, medicineName))
       recordScanDay()
       setScanStreak(getStreakFromStorage())
     } finally {

@@ -4,7 +4,7 @@ import dotenv from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import apiRoutes from './routes/apiRoutes.js'
-import { connectDB } from './config/db.js'
+import mongoose from 'mongoose'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -15,10 +15,33 @@ const app = express()
 const PORT = Number(process.env.PORT || 5000)
 const MAX_PORT_ATTEMPTS = Number(process.env.PORT_FALLBACK_ATTEMPTS || 15)
 
-app.use(cors())
+// FIXED: configured CORS middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json())
 
-await connectDB()
+// FIXED: Add MongoDB reconnect logic
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+    });
+    console.log('✅ MongoDB connected');
+  } catch (err) {
+    console.error('❌ MongoDB connection failed:', err.message);
+    setTimeout(connectDB, 5000); // FIXED: retry after 5 seconds
+  }
+};
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️ MongoDB disconnected — retrying...');
+  setTimeout(connectDB, 5000);
+});
+
+connectDB();
 
 app.get('/', (_req, res) => {
 	res.status(200).json({ message: 'Welcome to DawaCheck Backend API!' })
@@ -27,6 +50,17 @@ app.get('/', (_req, res) => {
 app.get('/health', (_req, res) => {
 	res.status(200).json({ ok: true, service: 'dawacheck-backend' })
 })
+
+// FIXED: health-check route so you can verify DB status without checking logs
+app.get('/api/health', (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const states = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+  res.json({
+    status: dbState === 1 ? 'ok' : 'degraded',
+    db: states[dbState],
+    uptime: process.uptime()
+  });
+});
 
 app.use('/api', apiRoutes)
 
@@ -56,4 +90,23 @@ const startServer = (port, attemptsLeft = MAX_PORT_ATTEMPTS) => {
 	})
 }
 
+// FIXED: .env validation on startup before app.listen
+const required = ['MONGO_URI', 'GEMINI_API_KEY'];
+required.forEach(key => {
+  if (!process.env[key]) {
+    console.error(`❌ Missing required env variable: ${key}`);
+    process.exit(1);
+  }
+});
+console.log('✅ All required env variables present');
+
 startServer(PORT)
+
+/*
+CURL TESTS FOR SERVER.JS:
+
+Test /api/health endpoint:
+curl.exe -s http://localhost:5000/api/health
+Output:
+{"status":"ok","db":"connected","uptime":103.1000556}
+*/

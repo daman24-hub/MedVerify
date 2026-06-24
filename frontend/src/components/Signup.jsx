@@ -29,10 +29,12 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
 
 		try {
 			const response = await register(email, password, name)
-			localStorage.setItem('authToken', response.data.token)
-			onSignupSuccess(response.data.user)
+			// FIXED: parse fetch response directly without response.data
+			localStorage.setItem('authToken', response.token)
+			onSignupSuccess(response.user)
 		} catch (err) {
-			setError(err.response?.data?.error || 'Signup failed')
+			// FIXED: handle fetch error message
+			setError(err.message || 'Signup failed')
 		} finally {
 			setLoading(false)
 		}

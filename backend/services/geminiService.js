@@ -1,9 +1,13 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash'
-const apiKey = process.env.GEMINI_API_KEY
-
-const client = apiKey ? new GoogleGenerativeAI(apiKey) : null
+let client = null
+const getClient = () => {
+	if (!client && process.env.GEMINI_API_KEY) {
+		client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+	}
+	return client
+}
 
 const modelCandidates = [
 	model,
@@ -13,8 +17,9 @@ const modelCandidates = [
 ]
 
 const getModel = (modelName, systemInstruction) => {
-	if (!client) return null
-	return client.getGenerativeModel({
+	const activeClient = getClient()
+	if (!activeClient) return null
+	return activeClient.getGenerativeModel({
 		model: modelName,
 		systemInstruction,
 	})
@@ -52,7 +57,7 @@ const generateText = async ({ userPrompt, systemInstruction }) => {
 }
 
 export const translateToHindi = async (resultText) => {
-	if (!client) {
+	if (!getClient()) {
 		return 'Hindi translation unavailable. GEMINI_API_KEY set karein.'
 	}
 
@@ -66,7 +71,7 @@ export const translateToHindi = async (resultText) => {
 }
 
 export const checkDrugInteractionsWithGemini = async (medicines) => {
-	if (!client) {
+	if (!getClient()) {
 		return 'CAUTION: AI interaction service unavailable. Apne doctor se confirm karein (consult your doctor).'
 	}
 
@@ -91,7 +96,7 @@ export const checkDrugInteractionsWithGemini = async (medicines) => {
 }
 
 export const verifyWithCsdco = async (ocrText, databaseMatch) => {
-	if (!client) {
+	if (!getClient()) {
 		return 'Safety verification service unavailable. Please set GEMINI_API_KEY.'
 	}
 
@@ -122,5 +127,37 @@ End explicitly with: "Disclaimer: Medical verification models provide informatio
 		return await generateText({ systemInstruction, userPrompt })
 	} catch (error) {
 		return 'Safety check service temporarily unavailable. Confirm composition with your pharmacist.'
+	}
+}
+
+export const extractMedicineNameFromImage = async (base64Data, mimeType) => {
+	if (!getClient()) {
+		throw new Error('Gemini API key is not configured.');
+	}
+
+	// Default to gemini-2.0-flash which supports multimodal content
+	const activeModel = getModel('gemini-2.0-flash', 'You are an expert pharmaceutical verification assistant. Your task is to identify the main brand name or generic chemical name of the medicine printed on the medicine box or strip shown in the image.');
+
+	if (!activeModel) {
+		throw new Error('Could not initialize Gemini model.');
+	}
+
+	const prompt = `Identify the medicine name from this image. Return ONLY the main brand name or generic composition name in plain text, with no other words, explanation, punctuation, or formatting. If there are multiple names, return the most prominent brand name (e.g., "Calpol 500", "Augmentin 625").`;
+
+	try {
+		const result = await activeModel.generateContent([
+			{
+				inlineData: {
+					data: base64Data,
+					mimeType: mimeType
+				}
+			},
+			prompt
+		]);
+
+		return result?.response?.text?.()?.trim() || '';
+	} catch (error) {
+		console.error('Gemini content generation failed:', error.message);
+		throw error;
 	}
 }
