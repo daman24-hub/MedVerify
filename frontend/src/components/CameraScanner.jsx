@@ -44,8 +44,15 @@ function CameraScanner({ onScanComplete, loading }) {
 				'eng',
 				{
 					logger: m => {
-						if (m.status === 'recognizing text') {
-							setOcrProgress(Math.round(40 + m.progress * 50));
+						console.log('[TESSERACT STATUS]', m.status, m.progress);
+						if (m.status === 'loading tesseract core') {
+							setOcrProgress(Math.round(40 + (m.progress || 0) * 10));
+						} else if (m.status === 'loading language traineddata') {
+							setOcrProgress(Math.round(50 + (m.progress || 0) * 10));
+						} else if (m.status === 'initializing api') {
+							setOcrProgress(65);
+						} else if (m.status === 'recognizing text') {
+							setOcrProgress(Math.round(70 + (m.progress || 0) * 25));
 						}
 					}
 				}
@@ -119,6 +126,7 @@ function CameraScanner({ onScanComplete, loading }) {
 	const scan = async () => {
 		if (!videoRef.current || !canvasRef.current) return
 
+		let base64Image = ''
 		try {
 			setScannerError('')
 			const video = videoRef.current
@@ -132,7 +140,7 @@ function CameraScanner({ onScanComplete, loading }) {
 			const context = canvas.getContext('2d', { willReadFrequently: true })
 			context.drawImage(video, 0, 0, width, height)
 
-			const base64Image = canvas.toDataURL('image/jpeg')
+			base64Image = canvas.toDataURL('image/jpeg')
 			setOcrProgress(30)
 
 			const response = await verifyMedicineByImage(base64Image)

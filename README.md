@@ -1,6 +1,6 @@
-# DawaCheck
+# MedVerify
 
-DawaCheck is a hackathon-ready medicine verification app for the SWASTHYA theme.
+MedVerify is a hackathon-ready medicine verification app for the SWASTHYA theme.
 It provides OCR-based strip scanning, authenticity lookup, Hindi voice guidance,
 interaction risk checks, and a counterfeit trend heatmap.
 
@@ -18,7 +18,7 @@ interaction risk checks, and a counterfeit trend heatmap.
 
 ```bash
 # Backend
-cd backend && npm install && npm run dev
+cd backend && npm install && npm run import:data -- data/1mgData.csv "data/All Drugs Ceiling Prices.csv" data/jan_aushadhi.csv && npm run dev
 
 # Frontend
 cd frontend && npm install && npm run dev
@@ -55,13 +55,14 @@ npm install
 ```
 
 4. Add the required CSV files in backend/data/:
-	 - cdsco.csv
+	 - 1mgData.csv
+	 - All Drugs Ceiling Prices.csv
 	 - jan_aushadhi.csv
    No raw text files are needed for the import flow.
 5. Import data:
 
 ```bash
-npm run import:data
+npm run import:data -- data/1mgData.csv "data/All Drugs Ceiling Prices.csv" data/jan_aushadhi.csv
 ```
 
 6. Start backend:
@@ -133,7 +134,7 @@ npm run build
 1. Scan a genuine strip and show green result + Hindi voice.
 2. Scan a risky/expired strip and show alert card.
 3. Open heatmap and pause for 3 seconds.
-4. Close with: "This data did not exist before DawaCheck."
+4. Close with: "This data did not exist before MedVerify."
 
 ## Required Screenshots For Judges
 
