@@ -13,12 +13,12 @@ const __dirname = path.dirname(__filename)
 const DATA_DIR = path.join(__dirname, '..', 'data')
 
 const normalizeKeyMap = {
-	name: ['name', 'brand_name', 'medicine_name', 'drug_name'],
+	name: ['name', 'brand_name', 'medicine_name', 'drug_name', 'formulation'],
 	manufacturer: ['manufacturer', 'company', 'company_name'],
 	approvalStatus: ['approvalstatus', 'approval_status', 'status'],
-	genericName: ['genericname', 'generic_name', 'salt', 'composition'],
+	genericName: ['genericname', 'generic_name', 'salt', 'composition', 'formulation'],
 	brandPrice: ['brandprice', 'brand_price', 'mrp', 'price'],
-	genericPrice: ['genericprice', 'generic_price', 'jan_aushadhi_price', 'ja_price'],
+	genericPrice: ['genericprice', 'generic_price', 'jan_aushadhi_price', 'ja_price', 'ceiling_price_excluding_taxes_rs_per_unit_'],
 }
 
 const normalizeHeader = (value) =>
@@ -28,11 +28,13 @@ const normalizeHeader = (value) =>
 		.replace(/[^a-z0-9]+/g, '_')
 
 const toNumber = (value) => {
-	const cleaned = String(value ?? '')
-		.replace(/,/g, '')
-		.replace(/[^0-9.]/g, '')
-	const parsed = Number(cleaned)
-	return Number.isFinite(parsed) ? parsed : 0
+	const cleaned = String(value ?? '').replace(/,/g, '').trim()
+	const match = cleaned.match(/[0-9]+(?:\.[0-9]+)?/)
+	if (match) {
+		const parsed = Number(match[0])
+		return Number.isFinite(parsed) ? parsed : 0
+	}
+	return 0
 }
 
 const resolveField = (row, aliases) => {
