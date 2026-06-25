@@ -17,6 +17,7 @@ import { logScan, verifyMedicine, getCurrentUser, saveOcrResult } from './servic
 import './components/WelcomeScreen.css'
 
 const STREAK_KEY = 'medverify_scan_days'
+const TOKEN_KEY = 'dawacheck_token'
 const EXPLORE_PATH = '/explore'
 const LEGACY_EXPLORE_PATH = '/how-it-works'
 const INTERACTION_CHECK_PATH = '/interaction-check'
@@ -111,7 +112,7 @@ function App() {
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState('')
 	const [scanStreak, setScanStreak] = useState(0)
-	const [showWelcome, setShowWelcome] = useState(!localStorage.getItem('authToken'))
+	const [showWelcome, setShowWelcome] = useState(!localStorage.getItem(TOKEN_KEY)) // FIXED: use TOKEN_KEY
 	const [currentPath, setCurrentPath] = useState(normalizePath(window.location.pathname))
 	const [currentUser, setCurrentUser] = useState(null)
 	const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -139,18 +140,17 @@ function App() {
 	useEffect(() => {
 		setScanStreak(getStreakFromStorage())
 
-		// Check if user is already authenticated
-		const token = localStorage.getItem('authToken')
+		// FIXED: use TOKEN_KEY instead of 'authToken'
+		const token = localStorage.getItem(TOKEN_KEY)
 		if (token) {
 			getCurrentUser()
 				.then((response) => {
-					// FIXED: use response directly, not response.data
-					setCurrentUser(response.user)
+					setCurrentUser(response.data?.user || response.user)
 					setIsAuthenticated(true)
 					setShowWelcome(false)
 				})
 				.catch(() => {
-					localStorage.removeItem('authToken')
+					localStorage.removeItem(TOKEN_KEY)
 					setIsAuthenticated(false)
 					setShowWelcome(true)
 				})
@@ -182,7 +182,6 @@ function App() {
 		setError('')
 
 		try {
-			// FIXED: use pre-fetched backend image verification results if available
 			let ocrRecordId = backendResult?.ocrRecordId || null
 			let payload = backendResult || {}
 
@@ -197,12 +196,10 @@ function App() {
 					}
 				}
 
-				// FIXED: call verifyMedicine with medicineName directly
 				const response = await verifyMedicine(medicineName)
 				payload = response || {}
 			}
 
-			// FIXED: Update parsing to match exact response shape: { success: true, medicine: { name, manufacturer, isGenuine, status, price, genericAlternatives } }
 			const med = payload.medicine || {}
 			let displayStatus = 'not_found'
 			if (payload.success && med.status) {
@@ -212,7 +209,7 @@ function App() {
 			}
 
 			const normalized = {
-				id: ocrRecordId, // FIXED: pass OCR record ID
+				id: ocrRecordId,
 				medicine: med.name || medicineName,
 				status: displayStatus,
 				ocrText: rawText || medicineName,
@@ -227,7 +224,7 @@ function App() {
 			recordScanDay()
 			setScanStreak(getStreakFromStorage())
 			notifyIfPossible(
-					'MedVerify scan complete',
+				'MedVerify scan complete',
 				`${normalized.medicine || 'Medicine'} marked as ${normalized.status}.`,
 			)
 
@@ -249,7 +246,6 @@ function App() {
 			}
 		} catch {
 			setError('Server unavailable. Showing demo card with dummy data.')
-			// FIXED: use rawText and medicineName for makeDummyResult
 			setScanResult(makeDummyResult(rawText || medicineName, medicineName))
 			recordScanDay()
 			setScanStreak(getStreakFromStorage())
@@ -286,7 +282,7 @@ function App() {
 	}
 
 	const handleLogout = () => {
-		localStorage.removeItem('authToken')
+		localStorage.removeItem(TOKEN_KEY) // FIXED: use TOKEN_KEY
 		setCurrentUser(null)
 		setIsAuthenticated(false)
 		setShowWelcome(true)
@@ -295,12 +291,10 @@ function App() {
 
 	const handleGetStarted = () => {
 		if (isAuthenticated) {
-			// Already logged in, go to explore page
 			setShowWelcome(false)
 			window.history.pushState({}, '', EXPLORE_PATH)
 			setCurrentPath(EXPLORE_PATH)
 		} else {
-			// Not logged in, show login page
 			if (currentPath !== '/') {
 				window.history.pushState({}, '', '/')
 				setCurrentPath('/')
@@ -467,7 +461,6 @@ function App() {
 		)
 	}
 
-	// Show welcome page first (public, no auth needed)
 	if (showWelcome) {
 		return (
 			<>
@@ -484,7 +477,6 @@ function App() {
 		)
 	}
 
-	// Show login/signup if user is trying to get started but not authenticated
 	if (authMode === 'login' && !isAuthenticated) {
 		return (
 			<>
@@ -543,4 +535,3 @@ function App() {
 }
 
 export default App
-

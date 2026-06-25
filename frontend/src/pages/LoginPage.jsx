@@ -1,93 +1,83 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { loginUser } from '../services/api'
-import { showToast } from '../services/toast'
+import { login } from '../services/api'
+import Logo from './Logo'
+import './Auth.css'
 
-export default function LoginPage() {
-  const navigate = useNavigate()
+export default function Login({ onLoginSuccess, onSwitchToSignup }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState({})
 
-  const validate = () => {
-    const next = {}
-    if (!email.match(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)) {
-      next.email = 'Enter a valid email address.'
-    }
-    if (password.length < 8) {
-      next.password = 'Password must be at least 8 characters.'
-    }
-    setErrors(next)
-    return Object.keys(next).length === 0
-  }
-
-  const onSubmit = async (event) => {
-    event.preventDefault()
-    if (!validate()) return
-
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
     setLoading(true)
+
     try {
-      const response = await loginUser({ email, password })
-      const token = response?.data?.token
-      if (!token) {
-        throw new Error('Authentication failed.')
-      }
+      const response = await login(email, password)
+      const { token, user } = response.data
+      if (!token) throw new Error('No token received')
       localStorage.setItem('dawacheck_token', token)
-      showToast('Welcome back! You are now signed in.', 'success')
-      navigate('/dashboard')
-    } catch (error) {
-      showToast(error?.response?.data?.error || error.message || 'Login failed.', 'error')
+      onLoginSuccess(user)
+    } catch (err) {
+      setError(err?.response?.data?.error || err.message || 'Login failed')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <main className="page-shell auth-page">
-      <section className="auth-card glass-panel">
-        <div className="auth-header">
-          <span className="eyebrow">Sign in</span>
-          <h1>Welcome back to DawaCheck</h1>
-          <p>Securely access your scans, preferences, and settings.</p>
+    <div className="auth-container">
+      <div className="auth-card">
+        <div className="auth-brand" aria-hidden="true">
+          <Logo size={36} />
+          <span>MedVerify</span>
         </div>
+        <h1>Welcome Back</h1>
+        <p className="auth-subtitle">Sign in to your account</p>
 
-        <form className="auth-form" onSubmit={onSubmit} noValidate>
-          <label className="field-label">
-            <span>Email</span>
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="form-group">
+            <label htmlFor="email">Email Address</label>
             <input
-              value={email}
-              onChange={(evt) => setEmail(evt.target.value)}
+              id="email"
               type="email"
-              placeholder="name@domain.com"
-              className="field"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
               required
             />
-            {errors.email ? <span className="field-error">{errors.email}</span> : null}
-          </label>
+          </div>
 
-          <label className="field-label">
-            <span>Password</span>
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
             <input
-              value={password}
-              onChange={(evt) => setPassword(evt.target.value)}
+              id="password"
               type="password"
-              placeholder="At least 8 characters"
-              className="field"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
               required
             />
-            {errors.password ? <span className="field-error">{errors.password}</span> : null}
-          </label>
+          </div>
 
-          <button className="button button-cta" type="submit" disabled={loading}>
-            {loading ? 'Signing in…' : 'Log in'}
+          {error && <div className="error-message">{error}</div>}
+
+          <button type="submit" className="auth-button" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
-        <p className="auth-footnote">
-          Don’t have an account? <Link to="/signup">Create one</Link>
+        <p className="auth-switch">
+          Don't have an account?{' '}
+          <button type="button" onClick={onSwitchToSignup} className="link-button">
+            Sign up
+          </button>
         </p>
-      </section>
-    </main>
+      </div>
+    </div>
   )
 }
