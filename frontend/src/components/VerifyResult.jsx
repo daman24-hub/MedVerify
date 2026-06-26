@@ -110,12 +110,5 @@ export default function VerifyResult({ medicineName, onReset }) {
       : 'यह दवा संदिग्ध या नकली हो सकती है। कृपया फार्मासिस्ट से पुष्टि करें।'
   };
 
-  return (
-    <>
-      <ResultCard result={mappedResult} onReset={onReset} />
-      <button type="button" className="vm-rescan-btn" onClick={onReset} style={{ marginTop: '1rem' }}>
-        Scan another medicine
-      </button>
-    </>
-  );
+  return <ResultCard result={mappedResult} onReset={onReset} />;
 }

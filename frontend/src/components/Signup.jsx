@@ -30,7 +30,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
 		try {
 			const response = await register(email, password, name)
 			// FIXED: parse fetch response directly without response.data
-			localStorage.setItem('authToken', response.token)
+			localStorage.setItem('dawacheck_token', response.token)
 			onSignupSuccess(response.user)
 		} catch (err) {
 			// FIXED: handle fetch error message

@@ -1,6 +1,7 @@
 import OcrResult from '../models/OcrResult.js'
 import Drug from '../models/Drug.js'
 import { extractMedicineNameFromImage } from '../services/geminiService.js'
+import { fetchGenericAlternatives } from './medicineController.js'
 
 const normalizeStatus = (approvalStatus) => {
 	const value = String(approvalStatus || '').toLowerCase()
@@ -139,10 +140,7 @@ export const verifyMedicineImage = async (req, res, next) => {
 		// Get generic alternatives
 		let genericAlternatives = []
 		if (drug.genericName) {
-			const alts = await Drug.find({
-				genericName: drug.genericName,
-				_id: { $ne: drug._id }
-			}).limit(5).lean()
+			const alts = await fetchGenericAlternatives(drug)
 			genericAlternatives = alts.map(alt => {
 				const altStatus = normalizeStatus(alt.approvalStatus)
 				const altResponseStatus = altStatus === 'genuine' ? 'genuine' : (altStatus === 'expired' ? 'counterfeit' : 'suspect')
