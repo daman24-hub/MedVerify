@@ -58,7 +58,7 @@ export const login = async (req, res) => {
 		res.json({
 			message: 'Login successful',
 			token,
-			user: { id: user._id, email: user.email, name: user.name },
+			user: { id: user._id, email: user.email, name: user.name || 'User' },
 		})
 	} catch (err) {
 		res.status(500).json({ error: err.message })
@@ -80,7 +80,7 @@ export const getCurrentUser = async (req, res) => {
 		}
 
 		res.json({
-			user: { id: user._id, email: user.email, name: user.name },
+			user: { id: user._id, email: user.email, name: user.name || 'User' },
 		})
 	} catch (err) {
 		res.status(401).json({ user: null })

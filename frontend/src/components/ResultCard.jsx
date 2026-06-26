@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { showToast } from '../services/toast' // FIXED: import showToast
 import { updateVerifyStatus } from '../services/api' // FIXED: import updateVerifyStatus
 
@@ -11,6 +11,7 @@ const colours = {
 
 function ResultCard({ result, onReset }) {
 	const theme = useMemo(() => colours[result?.status] || colours.not_found, [result?.status])
+	const [reminderSet, setReminderSet] = useState(false)
 
 	const hindiText = result?.hindiText || result?.hindi_message || ''
 
@@ -56,6 +57,7 @@ function ResultCard({ result, onReset }) {
 
 	const scheduleReminder = async () => {
 		if (!('Notification' in window)) {
+			showToast('Notifications are not supported by this browser.', 'error')
 			return
 		}
 
@@ -65,22 +67,45 @@ function ResultCard({ result, onReset }) {
 		}
 
 		if (permission !== 'granted') {
+			showToast('Notification permission was denied. Please allow notifications in settings.', 'error')
 			return
 		}
 
+		const delay = 8 * 60 * 60 * 1000 // 8 hours
 		const reminder = {
 			medicine: result?.medicine || 'Medicine',
-			dueAt: Date.now() + 8 * 60 * 60 * 1000,
+			dueAt: Date.now() + delay,
 		}
 
 		localStorage.setItem('medverify_reminder', JSON.stringify(reminder))
+		setReminderSet(true)
+		showToast(`Reminder scheduled for ${reminder.medicine} in 8 hours!`, 'success')
+
+		// Set client-side timeout to trigger notification if the app remains open
+		setTimeout(async () => {
+			if ('serviceWorker' in navigator) {
+				const registration = await navigator.serviceWorker.ready
+				await registration.showNotification('MedVerify Reminder', {
+					body: `Time to recheck ${reminder.medicine} and confirm safety.`,
+					icon: '/icon-192.png',
+				})
+			} else {
+				new Notification('MedVerify Reminder', {
+					body: `Time to recheck ${reminder.medicine} and confirm safety.`,
+				})
+			}
+		}, delay)
 
 		if ('serviceWorker' in navigator) {
-			const registration = await navigator.serviceWorker.ready
-			await registration.showNotification('MedVerify reminder set', {
-				body: `We will remind you to recheck ${reminder.medicine} in 8 hours.`,
-				icon: '/icon-192.png',
-			})
+			try {
+				const registration = await navigator.serviceWorker.ready
+				await registration.showNotification('MedVerify reminder set', {
+					body: `We will remind you to recheck ${reminder.medicine} in 8 hours.`,
+					icon: '/icon-192.png',
+				})
+			} catch (err) {
+				console.warn('Failed to display immediate service worker notification:', err)
+			}
 		}
 	}
 
@@ -227,8 +252,15 @@ function ResultCard({ result, onReset }) {
 				<button className="button button-secondary" type="button" onClick={() => speakText(hindiText, 'hi-IN')} aria-label="Listen Hindi voice">
 					🔊 सुनें (Listen) {/* FIXED: user click gesture speech check */}
 				</button>
-				<button className="button button-cta" type="button" onClick={scheduleReminder} aria-label="Set reminder in 8 hours">
-					Remind In 8 Hours
+				<button 
+					className={`button ${reminderSet ? 'button-success' : 'button-cta'}`} 
+					type="button" 
+					onClick={scheduleReminder} 
+					disabled={reminderSet}
+					style={{ backgroundColor: reminderSet ? '#2ecc71' : undefined, borderColor: reminderSet ? '#2ecc71' : undefined, color: reminderSet ? '#fff' : undefined }}
+					aria-label="Set reminder in 8 hours"
+				>
+					{reminderSet ? '✓ Reminder Set' : 'Remind In 8 Hours'}
 				</button>
 				<button className="button button-ghost" type="button" onClick={shareScreenshot} aria-label="Share result">
 					Share Result

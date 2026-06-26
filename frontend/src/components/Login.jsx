@@ -17,7 +17,7 @@ export default function Login({ onLoginSuccess, onSwitchToSignup }) {
 		try {
 			const response = await login(email, password)
 			// FIXED: parse fetch response directly without response.data
-			localStorage.setItem('authToken', response.token)
+			localStorage.setItem('dawacheck_token', response.token)
 			onLoginSuccess(response.user)
 		} catch (err) {
 			// FIXED: handle fetch error message
