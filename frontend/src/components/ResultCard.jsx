@@ -148,6 +148,61 @@ function ResultCard({ result, onReset }) {
 				<span>You can save Rs. {savings.toFixed(2)}</span>
 			</div>
 
+			{result?.genericAlternatives && result.genericAlternatives.length > 0 ? (
+				<div className="alternatives-section" style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+					<h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#132b20', marginBottom: '0.75rem' }}>
+						Affordable Generic Alternatives (PMBJP)
+					</h3>
+					<div className="alternatives-list" style={{ display: 'grid', gap: '0.8rem' }}>
+						{result.genericAlternatives.map((alt, index) => (
+							<div 
+								key={index} 
+								className="alt-card" 
+								style={{ 
+									display: 'flex', 
+									justifyContent: 'space-between', 
+									alignItems: 'center', 
+									padding: '0.85rem 1rem', 
+									background: 'rgba(240, 248, 245, 0.65)', 
+									border: '1px solid #d0ebd8', 
+									borderRadius: '12px' 
+								}}
+							>
+								<div>
+									<strong style={{ display: 'block', color: '#0f6f3c', fontSize: '0.94rem', fontWeight: '800' }}>{alt.name}</strong>
+									<span style={{ fontSize: '0.78rem', color: '#6B7280' }}>by {alt.manufacturer || 'Unknown Manufacturer'}</span>
+								</div>
+								<div style={{ textAlign: 'right' }}>
+									<strong style={{ display: 'block', color: '#132b20', fontSize: '0.94rem', fontWeight: '800' }}>Rs. {Number(alt.price || 0).toFixed(2)}</strong>
+									<span 
+										className={`status-badge-small ${alt.isGenuine ? 'genuine' : 'flagged'}`} 
+										style={{ 
+											fontSize: '0.68rem', 
+											padding: '0.15rem 0.4rem', 
+											borderRadius: '999px',
+											background: alt.isGenuine ? '#E1F5EE' : '#FAEEDA',
+											color: alt.isGenuine ? '#0F6E56' : '#854F0B',
+											border: `1px solid ${alt.isGenuine ? '#0F6E56' : '#854F0B'}`,
+											fontWeight: 'bold',
+											display: 'inline-block',
+											marginTop: '0.2rem'
+										}}
+									>
+										{alt.isGenuine ? 'Genuine' : 'Unverified'}
+									</span>
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+			) : (
+				<div className="alternatives-section" style={{ marginTop: '1.5rem', marginBottom: '1.5rem', padding: '1rem', background: '#f9f9f9', borderRadius: '12px', border: '1px solid #eee', textAlign: 'center' }}>
+					<p style={{ margin: 0, fontSize: '0.88rem', color: '#888' }}>
+						No cheaper generic alternatives found for this salt formulation.
+					</p>
+				</div>
+			)}
+
 			{result?.advice ? <p className="advice">{result.advice}</p> : null}
 
 			{/* FIXED: approve / reject buttons to persist verification feedback */}

@@ -45,8 +45,15 @@ function CameraScanner({ onScanComplete, loading }) {
       setOcrProgress(40)
       const result = await Tesseract.recognize(base64Image, 'eng', {
         logger: (m) => {
-          if (m.status === 'recognizing text') {
-            setOcrProgress(Math.round(40 + m.progress * 50))
+          console.log('[TESSERACT STATUS]', m.status, m.progress)
+          if (m.status === 'loading tesseract core') {
+            setOcrProgress(Math.round(40 + (m.progress || 0) * 10))
+          } else if (m.status === 'loading language traineddata') {
+            setOcrProgress(Math.round(50 + (m.progress || 0) * 10))
+          } else if (m.status === 'initializing api') {
+            setOcrProgress(65)
+          } else if (m.status === 'recognizing text') {
+            setOcrProgress(Math.round(70 + (m.progress || 0) * 25))
           }
         },
       })
@@ -70,6 +77,7 @@ function CameraScanner({ onScanComplete, loading }) {
         onScanComplete(data.medicine.name, rawText, null)
         return true
       } else {
+        // Even if the database has no match, still surface what OCR read so the user isn't stuck
         onScanComplete(candidateName, rawText, null)
         return true
       }

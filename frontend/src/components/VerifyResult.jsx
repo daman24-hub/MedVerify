@@ -27,6 +27,40 @@ export default function VerifyResult({ medicineName, onReset }) {
 
       const data = await api.get('/api/verify', { params: { name: nameToVerify } });
       setResult({ ...data.medicine, id: savedId }); // FIXED: attach OCR database record ID
+
+      // Persist the query log dataset in database for heatmap and analytics
+      if (data?.success && data?.medicine) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const { latitude, longitude } = pos.coords;
+            try {
+              await api.post('/api/scan-log', {
+                lat: latitude,
+                lng: longitude,
+                medicine: data.medicine.name,
+                result: data.medicine.status
+              });
+            } catch (logErr) {
+              console.error('Failed to log search query to scan-log:', logErr.message);
+            }
+          },
+          async () => {
+            // Fallback: log with default coordinates if location permission is denied
+            try {
+              await api.post('/api/scan-log', {
+                lat: 28.6139,
+                lng: 77.2090,
+                medicine: data.medicine.name,
+                result: data.medicine.status,
+                district: 'New Delhi'
+              });
+            } catch (logErr) {
+              console.error('Failed to log search query with default location:', logErr.message);
+            }
+          },
+          { enableHighAccuracy: false, timeout: 5000 }
+        );
+      }
     } catch (err) {
       setError(err.message); // FIXED: show error message on failure
     } finally {
@@ -69,6 +103,7 @@ export default function VerifyResult({ medicineName, onReset }) {
     ocrText: medicineName,
     price: result.price,
     marketAverage: result.genericAlternatives?.[0]?.price || result.price,
+    genericAlternatives: result.genericAlternatives || [], // FIXED: pass generic alternatives to ResultCard
     advice: `Medicine ${result.name} by ${result.manufacturer || 'Unknown'} is marked as ${result.status}.`,
     hindiText: result.status === 'genuine'
       ? 'यह दवा असली है। कृपया उपयोग से पहले डॉक्टर से सलाह लें।'
