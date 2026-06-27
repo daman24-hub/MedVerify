@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
 let client = null
 const getClient = () => {
 	if (!client && process.env.GEMINI_API_KEY) {
@@ -11,8 +11,8 @@ const getClient = () => {
 
 const modelCandidates = [
 	model,
-	'gemini-2.0-flash',
 	'gemini-2.5-flash',
+	'gemini-2.0-flash',
 	'gemini-flash-latest',
 ]
 
@@ -135,8 +135,8 @@ export const extractMedicineNameFromImage = async (base64Data, mimeType) => {
 		throw new Error('Gemini API key is not configured.');
 	}
 
-	// Default to gemini-2.0-flash which supports multimodal content
-	const activeModel = getModel('gemini-2.0-flash', 'You are an expert pharmaceutical verification assistant. Your task is to identify the main brand name or generic chemical name of the medicine printed on the medicine box or strip shown in the image.');
+	// Default to gemini-2.5-flash which supports multimodal content
+	const activeModel = getModel(model, 'You are an expert pharmaceutical verification assistant. Your task is to identify the main brand name or generic chemical name of the medicine printed on the medicine box or strip shown in the image.');
 
 	if (!activeModel) {
 		throw new Error('Could not initialize Gemini model.');
