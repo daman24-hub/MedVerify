@@ -18,6 +18,92 @@ const buildEnglishSummary = (drug) => {
 	].join(' ')
 }
 
+const STOP_WORDS = new Set([
+	'tablets', 'tablet', 'capsules', 'capsule', 'suspension', 'syrup', 'injection',
+	'ip', 'usp', 'bp', 'mg', 'mcg', 'ml', 'rx', 'and', 'for', 'with', 'in', 'per',
+	'of', 'active', 'gel', 'prolonged', 'release', 'gastro', 'resistant', 'delayed',
+	'enteric', 'coated', 'liquid', 'oral', 'drop', 'drops', 'infusion', 'pediatric',
+	'paediatric', 'solution', 'hd', 'ct', 'max', 'soft', 'gelatin', 'cl'
+])
+
+export const extractKeywords = (name) => {
+	if (!name) return []
+	return name
+		.toLowerCase()
+		.split(/[\s\-\/\(\)\.,\+]+/)
+		.filter(w => w.length >= 3)
+		.filter(w => !STOP_WORDS.has(w))
+		.filter(w => !/^\d+$/.test(w))
+}
+
+export const fetchGenericAlternatives = async (drug) => {
+	const keywords = extractKeywords(drug.genericName || drug.name)
+	if (keywords.length === 0) {
+		return []
+	}
+
+	const andConditions = keywords.map(kw => {
+		const regex = new RegExp(kw, 'i')
+		return {
+			$or: [
+				{ name: { $regex: regex } },
+				{ genericName: { $regex: regex } }
+			]
+		}
+	})
+
+	let query = {
+		_id: { $ne: drug._id },
+		$and: andConditions
+	}
+
+	let alts = await Drug.find(query).limit(50).lean()
+
+	if (alts.length === 0) {
+		const orConditions = keywords.map(kw => {
+			const regex = new RegExp(kw, 'i')
+			return {
+				$or: [
+					{ name: { $regex: regex } },
+					{ genericName: { $regex: regex } }
+				]
+			}
+		})
+		query = {
+			_id: { $ne: drug._id },
+			$or: orConditions
+		}
+		alts = await Drug.find(query).limit(50).lean()
+	}
+
+	// De-duplicate by name (case-insensitive)
+	const uniqueAlts = []
+	const seenNames = new Set([drug.name.toLowerCase()])
+
+	// Sort: prioritize Jan Aushadhi (generic alternatives) and then by price
+	const sortedAlts = alts.sort((a, b) => {
+		const aIsGeneric = a.manufacturer === 'PMBJP (Jan Aushadhi)' ? 1 : 0
+		const bIsGeneric = b.manufacturer === 'PMBJP (Jan Aushadhi)' ? 1 : 0
+		if (aIsGeneric !== bIsGeneric) {
+			return bIsGeneric - aIsGeneric
+		}
+		return (a.brandPrice || 0) - (b.brandPrice || 0)
+	})
+
+	for (const alt of sortedAlts) {
+		const lowerName = alt.name.toLowerCase()
+		if (!seenNames.has(lowerName)) {
+			seenNames.add(lowerName)
+			uniqueAlts.push(alt)
+		}
+		if (uniqueAlts.length >= 5) {
+			break
+		}
+	}
+
+	return uniqueAlts
+}
+
 export const verifyMedicine = async (req, res, next) => {
 	try {
 		const rawName = String(req.query.name || '').trim()
@@ -106,10 +192,7 @@ export const verifyMedicine = async (req, res, next) => {
 		// FIXED: Get generic alternatives from the database
 		let genericAlternatives = []
 		if (drug.genericName) {
-			const alts = await Drug.find({
-				genericName: drug.genericName,
-				_id: { $ne: drug._id }
-			}).limit(5).lean()
+			const alts = await fetchGenericAlternatives(drug)
 			genericAlternatives = alts.map(alt => {
 				const altStatus = normalizeStatus(alt.approvalStatus)
 				const altResponseStatus = altStatus === 'genuine' ? 'genuine' : (altStatus === 'expired' ? 'counterfeit' : 'suspect')
@@ -184,8 +267,8 @@ export const logScan = async (req, res, next) => {
 
 export const getHeatmap = async (_req, res, next) => {
 	try {
-		// FIXED: query ScanLog to aggregate lat/lng before sending
-		const raw = await ScanLog.find({}, 'latitude longitude medicineName result')
+		// FIXED: query ScanLog to aggregate lat/lng and district before sending
+		const raw = await ScanLog.find({}, 'latitude longitude medicineName result district')
 
 		const points = raw
 			.filter(r => r.latitude && r.longitude)
@@ -195,7 +278,8 @@ export const getHeatmap = async (_req, res, next) => {
 					lat: r.latitude,
 					lng: r.longitude,
 					name: r.medicineName,
-					status: status
+					status: status,
+					district: r.district || 'Unknown Location'
 				}
 			})
 

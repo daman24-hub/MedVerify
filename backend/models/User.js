@@ -11,11 +11,16 @@ const userSchema = new mongoose.Schema(
 		},
 		password: {
 			type: String,
-			required: true,
+		},
+		passwordHash: {
+			type: String,
 		},
 		name: {
 			type: String,
-			required: true,
+		},
+		voiceGuidance: {
+			type: Boolean,
+			default: true,
 		},
 		createdAt: {
 			type: Date,
@@ -37,7 +42,11 @@ userSchema.pre('save', async function (next) {
 })
 
 userSchema.methods.comparePassword = async function (plainPassword) {
-	return bcrypt.compare(plainPassword, this.password)
+	const hash = this.password || this.passwordHash
+	if (!hash) {
+		throw new Error('No password or password hash set for this user.')
+	}
+	return bcrypt.compare(plainPassword, hash)
 }
 
 export default mongoose.model('User', userSchema)

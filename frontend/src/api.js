@@ -9,7 +9,7 @@ const api = axios.create({
 
 // FIXED: request interceptor to attach Authorization header dynamically
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('authToken');
+  const token = localStorage.getItem('dawacheck_token');
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;
   }
@@ -21,7 +21,7 @@ api.interceptors.response.use(
   res => res.data,
   err => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('authToken'); // FIXED: remove token on 401
+      localStorage.removeItem('dawacheck_token'); // FIXED: remove token on 401
     }
     const message =
       err.response?.data?.error ||
