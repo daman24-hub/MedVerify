@@ -160,6 +160,12 @@ function CameraScanner({ onScanComplete, loading }) {
         await performLocalOcrFallback(base64Image)
       }
     } catch (error) {
+      const errMsg = error.response?.data?.error
+      if (errMsg === 'Please scan a valid medicine.') {
+        setOcrProgress(0)
+        setScannerError(errMsg)
+        return
+      }
       console.warn('Backend image OCR failed, trying local fallback:', error.message)
       if (base64Image) {
         await performLocalOcrFallback(base64Image)
@@ -195,6 +201,12 @@ function CameraScanner({ onScanComplete, loading }) {
           await performLocalOcrFallback(base64Image)
         }
       } catch (error) {
+        const errMsg = error.response?.data?.error
+        if (errMsg === 'Please scan a valid medicine.') {
+          setOcrProgress(0)
+          setScannerError(errMsg)
+          return
+        }
         console.warn('Backend image OCR failed, trying local fallback:', error.message)
         await performLocalOcrFallback(base64Image)
       }

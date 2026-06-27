@@ -142,7 +142,9 @@ export const extractMedicineNameFromImage = async (base64Data, mimeType) => {
 		throw new Error('Could not initialize Gemini model.');
 	}
 
-	const prompt = `Identify the medicine name from this image. Return ONLY the main brand name or generic composition name in plain text, with no other words, explanation, punctuation, or formatting. If there are multiple names, return the most prominent brand name (e.g., "Calpol 500", "Augmentin 625").`;
+	const prompt = `Identify the medicine name from this image. Return ONLY the main brand name or generic composition name in plain text, with no other words, explanation, punctuation, or formatting. If there are multiple names, return the most prominent brand name (e.g., "Calpol 500", "Augmentin 625").
+
+CRITICAL: If the image does not show a medicine box, medicine strip, medicine container, bottle, syringe/injection, or any pharmaceutical packaging (for example, if the image shows a person's face, a room, an animal, or a random object that is clearly not a medicine package), you MUST return exactly the text "INVALID_IMAGE".`;
 
 	try {
 		const result = await activeModel.generateContent([

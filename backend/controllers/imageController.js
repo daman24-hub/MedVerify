@@ -41,9 +41,9 @@ export const verifyMedicineImage = async (req, res, next) => {
 			})
 		}
 
-		if (!extractedName) {
+		if (!extractedName || extractedName.toUpperCase() === 'INVALID_IMAGE') {
 			return res.status(400).json({
-				error: 'Could not read or extract medicine name from the image. Please try again with a clearer picture.'
+				error: 'Please scan a valid medicine.'
 			})
 		}
 

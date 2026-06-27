@@ -51,6 +51,13 @@ export default function VerifyMedicine() {
         return
       }
     } catch (e) {
+      const errMsg = e.response?.data?.error
+      if (errMsg === 'Please scan a valid medicine.') {
+        setOcrError(errMsg)
+        setOcrProgress(0)
+        setScanning(false)
+        return
+      }
       console.warn('Backend OCR failed, using Tesseract fallback')
     }
 
