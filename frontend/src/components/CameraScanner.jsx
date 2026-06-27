@@ -27,20 +27,35 @@ function CameraScanner({ onScanComplete, loading }) {
       .map((l) => l.replace(/[®™©\(\)\[\]]/g, '').trim())
       .filter((l) => l.length >= 4)
 
+    // Filter out completely generic lines (quantity, dosage instruction, etc.)
+    const isGenericLine = (line) => {
+      const clean = line.toLowerCase().trim();
+      if (/^\d+\s*(tablets|tablet|capsules|capsule|softgels|softgel|caps|tabs|sachets|sachet|pills|pill|mg|ml|mcg|gm|g)\s*$/i.test(clean)) {
+        return true;
+      }
+      const genericPatterns = [
+        /\b(each\b.*\bcontains|directed\b.*\bphysician|store\b.*\bplace|keep\b.*\breach|out\b.*\bchildren|film\b.*\bcoated|colour|excipients|storage|manufacturing|batch|exp\b.*\bdate|mfg\b.*\bdate|price|inclusive|taxes)\b/i
+      ];
+      return genericPatterns.some(pat => pat.test(clean));
+    };
+
+    const cleanLines = lines.filter(l => !isGenericLine(l))
+    if (cleanLines.length === 0) return null
+
     // Priority 1: line with known medicine keywords
-    const keywordMatch = lines.find(l => medKeywords.test(l))
+    const keywordMatch = cleanLines.find(l => medKeywords.test(l))
     if (keywordMatch) {
       return keywordMatch.replace(/[^a-zA-Z\s]/g, ' ').trim().split(/\s+/).slice(0, 3).join(' ')
     }
 
     // Priority 2: longest clean alphabetic line
-    const nameOnly = lines
+    const nameOnly = cleanLines
       .filter(l => /^[A-Za-z][A-Za-z\s\-]{3,}$/.test(l))
       .sort((a, b) => b.length - a.length)[0]
     if (nameOnly) return nameOnly.trim()
 
     // Priority 3: first line with 4+ letters
-    const fallback = lines.find(l => (l.match(/[A-Za-z]/g) || []).length >= 4)
+    const fallback = cleanLines.find(l => (l.match(/[A-Za-z]/g) || []).length >= 4)
     return fallback?.replace(/[^a-zA-Z\s]/g, ' ').trim() || null
   }
 
