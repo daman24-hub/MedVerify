@@ -16,13 +16,18 @@ function CameraScanner({ onScanComplete, loading }) {
   const parseMedicineName = (rawText) => {
     if (!rawText) return null
 
+    // Enforce that the raw text MUST contain some medicine indicators
+    const medKeywords = /\b(tablet|tablets|capsule|capsules|syrup|injection|suspension|drops|drop|infusion|gel|ointment|cream|mg|ml|mcg|gm|ip|usp|bp|paracetamol|amoxicillin|ibuprofen|cetirizine|azithromycin|calpol|dolo|crocin|combiflam|metformin|atorvastatin|omeprazole|pantoprazole|aspirin|ciprofloxacin|metronidazole)\b/i
+    if (!medKeywords.test(rawText)) {
+      return null
+    }
+
     const lines = rawText
       .split('\n')
       .map((l) => l.replace(/[®™©\(\)\[\]]/g, '').trim())
       .filter((l) => l.length >= 4)
 
     // Priority 1: line with known medicine keywords
-    const medKeywords = /\b(tablet|capsule|syrup|injection|suspension|mg|ml|paracetamol|amoxicillin|ibuprofen|cetirizine|azithromycin|calpol|dolo|crocin|combiflam|metformin|atorvastatin|omeprazole|pantoprazole|aspirin|ciprofloxacin|metronidazole)\b/i
     const keywordMatch = lines.find(l => medKeywords.test(l))
     if (keywordMatch) {
       return keywordMatch.replace(/[^a-zA-Z\s]/g, ' ').trim().split(/\s+/).slice(0, 3).join(' ')
@@ -65,7 +70,7 @@ function CameraScanner({ onScanComplete, loading }) {
       console.log('Parsed candidate medicine name:', candidateName)
 
       if (!candidateName) {
-        throw new Error('Please scan a valid medicine.')
+        throw new Error('Please scan a valid medicine or upload a valid image.')
       }
 
       setOcrProgress(90)
@@ -84,7 +89,7 @@ function CameraScanner({ onScanComplete, loading }) {
     } catch (fallbackError) {
       console.error('Local Tesseract fallback failed:', fallbackError)
       setOcrProgress(0)
-      setScannerError('Please scan a valid medicine.')
+      setScannerError('Please scan a valid medicine or upload a valid image.')
       return false
     }
   }
@@ -159,7 +164,7 @@ function CameraScanner({ onScanComplete, loading }) {
       }
     } catch (error) {
       const errMsg = error.response?.data?.error
-      if (errMsg === 'Please scan a valid medicine.') {
+      if (errMsg === 'Please scan a valid medicine or upload a valid image.') {
         setOcrProgress(0)
         setScannerError(errMsg)
         return
@@ -200,7 +205,7 @@ function CameraScanner({ onScanComplete, loading }) {
         }
       } catch (error) {
         const errMsg = error.response?.data?.error
-        if (errMsg === 'Please scan a valid medicine.') {
+        if (errMsg === 'Please scan a valid medicine or upload a valid image.') {
           setOcrProgress(0)
           setScannerError(errMsg)
           return

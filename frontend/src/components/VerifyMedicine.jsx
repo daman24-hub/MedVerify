@@ -21,18 +21,27 @@ export default function VerifyMedicine() {
 
   const parseMedicineName = (rawText) => {
     if (!rawText) return null
+
+    // Enforce that the raw text MUST contain some medicine indicators
+    const medKeywords = /\b(tablet|tablets|capsule|capsules|syrup|injection|suspension|drops|drop|infusion|gel|ointment|cream|mg|ml|mcg|gm|ip|usp|bp|paracetamol|amoxicillin|ibuprofen|cetirizine|azithromycin|calpol|dolo|crocin|combiflam|metformin|atorvastatin|omeprazole|pantoprazole|aspirin|ciprofloxacin|metronidazole)\b/i
+    if (!medKeywords.test(rawText)) {
+      return null
+    }
+
     const lines = rawText
       .split('\n')
       .map(l => l.replace(/[®™©\(\)\[\]]/g, '').trim())
       .filter(l => l.length >= 4)
 
-    const medKeywords = /\b(tablet|capsule|syrup|injection|suspension|mg|ml|paracetamol|amoxicillin|ibuprofen|cetirizine|azithromycin|calpol|dolo|crocin|combiflam|metformin|atorvastatin|omeprazole|pantoprazole|aspirin|ciprofloxacin|metronidazole)\b/i
+    // Priority 1: line with known medicine keywords
     const keywordMatch = lines.find(l => medKeywords.test(l))
     if (keywordMatch) return keywordMatch.replace(/[^a-zA-Z\s]/g, ' ').trim().split(/\s+/).slice(0, 3).join(' ')
 
+    // Priority 2: longest clean alphabetic line
     const nameOnly = lines.filter(l => /^[A-Za-z][A-Za-z\s\-]{3,}$/.test(l)).sort((a, b) => b.length - a.length)[0]
     if (nameOnly) return nameOnly.trim()
 
+    // Priority 3: first line with 4+ letters
     const fallback = lines.find(l => (l.match(/[A-Za-z]/g) || []).length >= 4)
     return fallback?.replace(/[^a-zA-Z\s]/g, ' ').trim() || null
   }
@@ -52,7 +61,7 @@ export default function VerifyMedicine() {
       }
     } catch (e) {
       const errMsg = e.response?.data?.error
-      if (errMsg === 'Please scan a valid medicine.') {
+      if (errMsg === 'Please scan a valid medicine or upload a valid image.') {
         setOcrError(errMsg)
         setOcrProgress(0)
         setScanning(false)
@@ -76,11 +85,11 @@ export default function VerifyMedicine() {
         setOcrProgress(100)
         setSearchedName(name)
       } else {
-        setOcrError('Please scan a valid medicine.')
+        setOcrError('Please scan a valid medicine or upload a valid image.')
         setOcrProgress(0)
       }
     } catch (e) {
-      setOcrError('Please scan a valid medicine.')
+      setOcrError('Please scan a valid medicine or upload a valid image.')
       setOcrProgress(0)
     } finally {
       setScanning(false)
