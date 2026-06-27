@@ -11,6 +11,30 @@ const colours = {
 
 function ResultCard({ result, onReset }) {
 	const theme = useMemo(() => colours[result?.status] || colours.not_found, [result?.status])
+	const adviceStyle = useMemo(() => {
+		if (result?.status === 'genuine') {
+			return {
+				background: '#E1F5EE',
+				border: '1px solid #0F6E56',
+				color: '#0F6E56',
+			}
+		}
+		if (result?.status === 'flagged') {
+			return {
+				background: '#FAEEDA',
+				border: '1px solid #854F0B',
+				color: '#854F0B',
+			}
+		}
+		if (result?.status === 'expired') {
+			return {
+				background: '#FCEBEB',
+				border: '1px solid #A32D2D',
+				color: '#A32D2D',
+			}
+		}
+		return {}
+	}, [result?.status])
 	const [reminderSet, setReminderSet] = useState(false)
 
 	const hindiText = result?.hindiText || result?.hindi_message || ''
@@ -228,7 +252,7 @@ function ResultCard({ result, onReset }) {
 				</div>
 			)}
 
-			{result?.advice ? <p className="advice">{result.advice}</p> : null}
+			{result?.advice ? <p className="advice" style={adviceStyle}>{result.advice}</p> : null}
 
 			{/* FIXED: approve / reject buttons to persist verification feedback */}
 			<div className="verify-feedback-row" style={{ marginTop: '1.25rem', marginBottom: '1.25rem', display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
