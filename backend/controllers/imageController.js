@@ -1,7 +1,6 @@
 import OcrResult from '../models/OcrResult.js'
 import Drug from '../models/Drug.js'
-import { extractMedicineNameFromImage } from '../services/geminiService.js'
-import { fetchGenericAlternatives } from './medicineController.js'
+import { extractMedicineNameFromImage } from '../services/groqService.js'
 
 const normalizeStatus = (approvalStatus) => {
 	const value = String(approvalStatus || '').toLowerCase()
@@ -29,14 +28,14 @@ export const verifyMedicineImage = async (req, res, next) => {
 
 		let extractedName = ''
 		try {
-			console.log(`[IMAGE OCR] Sending image to Gemini for name extraction...`)
+			console.log(`[IMAGE OCR] Sending image to Groq for name extraction...`)
 			extractedName = await extractMedicineNameFromImage(base64Data, mimeType)
-			console.log(`[IMAGE OCR] Gemini extracted name: "${extractedName}"`)
+			console.log(`[IMAGE OCR] Groq extracted name: "${extractedName}"`)
 		} catch (ocrError) {
-			console.error(`[IMAGE OCR] Gemini name extraction failed:`, ocrError.message)
+			console.error(`[IMAGE OCR] Groq name extraction failed:`, ocrError.message)
 			return res.status(502).json({
 				success: false,
-				error: 'Gemini OCR name extraction failed. Please verify API key configuration or use local OCR fallback.',
+				error: 'Groq OCR name extraction failed. Please verify API key configuration or use local OCR fallback.',
 				details: ocrError.message
 			})
 		}

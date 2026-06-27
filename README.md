@@ -35,7 +35,7 @@ cd frontend && npm install && npm run dev
 ## Tech Stack
 
 - Frontend: React + Vite + Tesseract.js + Leaflet + vite-plugin-pwa
-- Backend: Node.js + Express + MongoDB + Google Gemini API
+- Backend: Node.js + Express + MongoDB + Groq API
 
 ## Project Structure
 
@@ -119,8 +119,8 @@ npm run build
 - Start command: node server.js
 - Environment variables:
 	- MONGO_URI
-	- GEMINI_API_KEY
-	- GEMINI_MODEL=gemini-2.0-flash
+	- GROQ_API_KEY
+	- GROQ_MODEL=llama-3.1-8b-instant
 	- PORT=5000
 
 ### Frontend (Vercel)
