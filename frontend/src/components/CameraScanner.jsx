@@ -65,7 +65,7 @@ function CameraScanner({ onScanComplete, loading }) {
       console.log('Parsed candidate medicine name:', candidateName)
 
       if (!candidateName) {
-        throw new Error('Could not recognize any medicine name from the image.')
+        throw new Error('Please scan a valid medicine.')
       }
 
       setOcrProgress(90)
@@ -84,9 +84,7 @@ function CameraScanner({ onScanComplete, loading }) {
     } catch (fallbackError) {
       console.error('Local Tesseract fallback failed:', fallbackError)
       setOcrProgress(0)
-      setScannerError(
-        `OCR failed: ${fallbackError?.message || 'Could not verify medicine. Try entering the name manually.'}`
-      )
+      setScannerError('Please scan a valid medicine.')
       return false
     }
   }

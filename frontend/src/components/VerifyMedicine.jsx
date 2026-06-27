@@ -76,11 +76,11 @@ export default function VerifyMedicine() {
         setOcrProgress(100)
         setSearchedName(name)
       } else {
-        setOcrError('Could not read medicine name. Try a clearer image.')
+        setOcrError('Please scan a valid medicine.')
         setOcrProgress(0)
       }
     } catch (e) {
-      setOcrError('OCR failed. Please type the medicine name instead.')
+      setOcrError('Please scan a valid medicine.')
       setOcrProgress(0)
     } finally {
       setScanning(false)
