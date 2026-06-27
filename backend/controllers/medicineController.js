@@ -1,6 +1,6 @@
 import Drug from '../models/Drug.js'
 import ScanLog from '../models/ScanLog.js'
-import { translateToHindi } from '../services/geminiService.js'
+import { translateToHindi } from '../services/groqService.js'
 
 const normalizeStatus = (approvalStatus) => {
 	const value = String(approvalStatus || '').toLowerCase()

@@ -1,29 +1,16 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import Groq from 'groq-sdk'
 
-const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash'
-let client = null
-const getClient = () => {
-	if (!client && process.env.GEMINI_API_KEY) {
-		client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-	}
-	return client
-}
+const model = process.env.GROQ_MODEL || 'llama-3.1-8b-instant'
+const apiKey = process.env.GROQ_API_KEY
+
+const client = apiKey ? new Groq({ apiKey }) : null
 
 const modelCandidates = [
 	model,
-	'gemini-2.0-flash',
-	'gemini-2.5-flash',
-	'gemini-flash-latest',
+	'llama-3.1-8b-instant',
+	'llama-3.3-70b-versatile',
+	'mixtral-8x7b-32768',
 ]
-
-const getModel = (modelName, systemInstruction) => {
-	const activeClient = getClient()
-	if (!activeClient) return null
-	return activeClient.getGenerativeModel({
-		model: modelName,
-		systemInstruction,
-	})
-}
 
 const isQuotaOrAvailabilityError = (error) => {
 	const message = String(error?.message || '').toLowerCase()
@@ -38,15 +25,22 @@ const isQuotaOrAvailabilityError = (error) => {
 const generateText = async ({ userPrompt, systemInstruction }) => {
 	for (const modelName of modelCandidates) {
 		try {
-			const activeModel = getModel(modelName, systemInstruction)
-			if (!activeModel) return ''
+			if (!client) return ''
 
-			const response = await activeModel.generateContent(userPrompt)
-			const text = response?.response?.text?.()?.trim() || ''
+			const response = await client.chat.completions.create({
+				model: modelName,
+				temperature: 0.2,
+				messages: [
+					{ role: 'system', content: systemInstruction },
+					{ role: 'user', content: userPrompt },
+				],
+			})
+
+			const text = response?.choices?.[0]?.message?.content?.trim() || ''
 			if (text) return text
 		} catch (error) {
 			const message = String(error?.message || '')
-			if (message.includes('is not found') || message.includes('not supported')) {
+			if (message.includes('not found') || message.includes('does not exist')) {
 				continue
 			}
 			throw error
@@ -57,8 +51,8 @@ const generateText = async ({ userPrompt, systemInstruction }) => {
 }
 
 export const translateToHindi = async (resultText) => {
-	if (!getClient()) {
-		return 'Hindi translation unavailable. GEMINI_API_KEY set karein.'
+	if (!client) {
+		return 'Hindi translation unavailable. GROQ_API_KEY set karein.'
 	}
 
 	const text = await generateText({
@@ -70,8 +64,8 @@ export const translateToHindi = async (resultText) => {
 	return text || 'Hindi translation unavailable right now.'
 }
 
-export const checkDrugInteractionsWithGemini = async (medicines) => {
-	if (!getClient()) {
+export const checkDrugInteractionsWithGroq = async (medicines) => {
+	if (!client) {
 		return 'CAUTION: AI interaction service unavailable. Apne doctor se confirm karein (consult your doctor).'
 	}
 
@@ -96,15 +90,15 @@ export const checkDrugInteractionsWithGemini = async (medicines) => {
 }
 
 export const verifyWithCsdco = async (ocrText, databaseMatch) => {
-	if (!getClient()) {
-		return 'Safety verification service unavailable. Please set GEMINI_API_KEY.'
+	if (!client) {
+		return 'Safety verification service unavailable. Please set GROQ_API_KEY.'
 	}
 
-	const databaseContext = databaseMatch 
+	const databaseContext = databaseMatch
 		? `Local Database Record Found: Name: ${databaseMatch.name}, Approved Status: ${databaseMatch.approvalStatus}, Composition: ${databaseMatch.genericName || 'N/A'}`
 		: 'No exact match found in local reference files.'
 
-	const systemInstruction = 
+	const systemInstruction =
 		'You are an expert pharmaceutical verification assistant cross-referencing text with the Central Drugs Standard Control Organisation (CDSCO) regulations of India. Analyze the text for active chemical components, safety status, and compliance flags. Keep warnings objective and clear.'
 
 	const userPrompt = `
@@ -125,39 +119,38 @@ End explicitly with: "Disclaimer: Medical verification models provide informatio
 
 	try {
 		return await generateText({ systemInstruction, userPrompt })
-	} catch (error) {
+	} catch {
 		return 'Safety check service temporarily unavailable. Confirm composition with your pharmacist.'
 	}
 }
 
 export const extractMedicineNameFromImage = async (base64Data, mimeType) => {
-	if (!getClient()) {
-		throw new Error('Gemini API key is not configured.');
+	if (!client) {
+		throw new Error('Groq API key is not configured.')
 	}
 
-	// Default to gemini-2.0-flash which supports multimodal content
-	const activeModel = getModel('gemini-2.0-flash', 'You are an expert pharmaceutical verification assistant. Your task is to identify the main brand name or generic chemical name of the medicine printed on the medicine box or strip shown in the image.');
+	const visionModel = process.env.GROQ_VISION_MODEL || 'llama-3.2-11b-vision-preview'
+	const prompt =
+		'Identify the medicine name from this image. Return only the main brand name or generic composition name in plain text. No extra words, punctuation, or formatting. If multiple names appear, return the most prominent medicine name.'
 
-	if (!activeModel) {
-		throw new Error('Could not initialize Gemini model.');
-	}
-
-	const prompt = `Identify the medicine name from this image. Return ONLY the main brand name or generic composition name in plain text, with no other words, explanation, punctuation, or formatting. If there are multiple names, return the most prominent brand name (e.g., "Calpol 500", "Augmentin 625").`;
-
-	try {
-		const result = await activeModel.generateContent([
+	const response = await client.chat.completions.create({
+		model: visionModel,
+		temperature: 0,
+		messages: [
 			{
-				inlineData: {
-					data: base64Data,
-					mimeType: mimeType
-				}
+				role: 'user',
+				content: [
+					{ type: 'text', text: prompt },
+					{
+						type: 'image_url',
+						image_url: {
+							url: `data:${mimeType};base64,${base64Data}`,
+						},
+					},
+				],
 			},
-			prompt
-		]);
+		],
+	})
 
-		return result?.response?.text?.()?.trim() || '';
-	} catch (error) {
-		console.error('Gemini content generation failed:', error.message);
-		throw error;
-	}
+	return response?.choices?.[0]?.message?.content?.trim() || ''
 }
