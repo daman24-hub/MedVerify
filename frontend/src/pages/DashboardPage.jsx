@@ -118,11 +118,21 @@ export default function DashboardPage() {
               // Non-blocking analytics call.
             }
           },
-          () => {
-            // skip location if denied
+          async () => {
+            try {
+              await logScan(null, null, normalized.medicine, normalized.status)
+            } catch {
+              // Non-blocking analytics call.
+            }
           },
           { enableHighAccuracy: false, timeout: 7000 },
         )
+      } else {
+        try {
+          await logScan(null, null, normalized.medicine, normalized.status)
+        } catch {
+          // Non-blocking analytics call.
+        }
       }
     } catch (apiError) {
       setError('Server unavailable. Displaying demo scan result.')

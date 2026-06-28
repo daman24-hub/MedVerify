@@ -4,9 +4,21 @@ import { translateToHindi } from '../services/geminiService.js'
 
 const normalizeStatus = (approvalStatus) => {
 	const value = String(approvalStatus || '').toLowerCase()
-	if (value.includes('approved') || value.includes('genuine')) return 'genuine'
-	if (value.includes('expired')) return 'expired'
-	if (value.includes('flag') || value.includes('warning')) return 'flagged'
+	if (value.includes('counterfeit') || 
+		value.includes('expired') || 
+		value.includes('fake') || 
+		value.includes('banned') || 
+		value.includes('suspended') || 
+		value.includes('recalled') || 
+		value.includes('withdrawn')) {
+		return 'expired'
+	}
+	if (value.includes('approved') || 
+		value.includes('genuine') || 
+		value.includes('active') || 
+		value.includes('safe')) {
+		return 'genuine'
+	}
 	return 'flagged'
 }
 
@@ -232,15 +244,23 @@ export const logScan = async (req, res, next) => {
 		if (normalizedResult === 'suspect') normalizedResult = 'flagged'
 		if (normalizedResult === 'counterfeit') normalizedResult = 'expired'
 		
-		const finalLat = Number(lat ?? latitude)
-		const finalLng = Number(lng ?? longitude)
+		let finalLat = lat ?? latitude
+		let finalLng = lng ?? longitude
+		let finalDistrict = district ? String(district).trim() : 'Unknown'
+
+		if (finalLat === null || finalLat === undefined || finalLat === '' ||
+			finalLng === null || finalLng === undefined || finalLng === '' ||
+			!Number.isFinite(Number(finalLat)) || !Number.isFinite(Number(finalLng))) {
+			finalLat = 0
+			finalLng = 0
+			finalDistrict = 'Location Unavailable'
+		} else {
+			finalLat = Number(finalLat)
+			finalLng = Number(finalLng)
+		}
 
 		if (!normalizedMedicine) {
 			return res.status(400).json({ error: 'medicineName is required.' })
-		}
-
-		if (!Number.isFinite(finalLat) || !Number.isFinite(finalLng)) {
-			return res.status(400).json({ error: 'latitude and longitude are required.' })
 		}
 
 		const entry = await ScanLog.create({
@@ -248,7 +268,7 @@ export const logScan = async (req, res, next) => {
 			result: normalizedResult,
 			latitude: finalLat,
 			longitude: finalLng,
-			district: district ? String(district).trim() : 'Unknown',
+			district: finalDistrict,
 		})
 
 		return res.status(201).json({

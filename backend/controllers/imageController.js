@@ -5,9 +5,21 @@ import { fetchGenericAlternatives } from './medicineController.js'
 
 const normalizeStatus = (approvalStatus) => {
 	const value = String(approvalStatus || '').toLowerCase()
-	if (value.includes('approved') || value.includes('genuine')) return 'genuine'
-	if (value.includes('expired')) return 'expired'
-	if (value.includes('flag') || value.includes('warning')) return 'flagged'
+	if (value.includes('counterfeit') || 
+		value.includes('expired') || 
+		value.includes('fake') || 
+		value.includes('banned') || 
+		value.includes('suspended') || 
+		value.includes('recalled') || 
+		value.includes('withdrawn')) {
+		return 'expired'
+	}
+	if (value.includes('approved') || 
+		value.includes('genuine') || 
+		value.includes('active') || 
+		value.includes('safe')) {
+		return 'genuine'
+	}
 	return 'flagged'
 }
 

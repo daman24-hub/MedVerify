@@ -238,11 +238,21 @@ function App() {
 							// Non-blocking analytics call.
 						}
 					},
-					() => {
-						// Skip scan log silently when location permission is denied.
+					async () => {
+						try {
+							await logScan(null, null, normalized.medicine, normalized.status)
+						} catch {
+							// Non-blocking analytics call.
+						}
 					},
 					{ enableHighAccuracy: false, timeout: 7000 },
 				)
+			} else {
+				try {
+					await logScan(null, null, normalized.medicine, normalized.status)
+				} catch {
+					// Non-blocking analytics call.
+				}
 			}
 		} catch {
 			setError('Server unavailable. Showing demo card with dummy data.')
