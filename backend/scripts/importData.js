@@ -56,7 +56,24 @@ const readCsv = async (filePath) => {
 
 		const parser = parse({
 			bom: true,
-			columns: (headers) => headers.map(normalizeHeader),
+			columns: (headers) => {
+				const normalized = headers.map(normalizeHeader)
+				
+				// Validate critical columns
+				const hasNameAlias = normalized.some(h => normalizeKeyMap.name.includes(h))
+				const hasGenericNameAlias = normalized.some(h => normalizeKeyMap.genericName.includes(h))
+				const hasBrandPriceAlias = normalized.some(h => normalizeKeyMap.brandPrice.includes(h))
+				const hasGenericPriceAlias = normalized.some(h => normalizeKeyMap.genericPrice.includes(h))
+
+				if (!hasNameAlias && !hasGenericNameAlias) {
+					console.warn(`⚠️  WARNING [CSV Header Validation]: No column in "${path.basename(filePath)}" matches 'name' or 'genericName' aliases. Import may fail to extract medicine names.`);
+				}
+				if (!hasBrandPriceAlias && !hasGenericPriceAlias) {
+					console.warn(`⚠️  WARNING [CSV Header Validation]: No column in "${path.basename(filePath)}" matches 'brandPrice' or 'genericPrice' aliases. Prices may default to 0.`);
+				}
+
+				return normalized
+			},
 			trim: true,
 			skip_empty_lines: true,
 		})
@@ -137,13 +154,31 @@ const run = async () => {
 			process.exit(0)
 		}
 
-		console.log(`Wiping existing Drug collection...`)
-		await Drug.deleteMany({})
+		console.log(`Performing bulk upserts for ${allDocs.length} drug records in batches of 1000...`)
+		const batchSize = 1000
+		let upsertedCount = 0
+		let modifiedCount = 0
+		let matchedCount = 0
 
-		console.log(`Inserting ${allDocs.length} total drug records...`)
-		await Drug.insertMany(allDocs, { ordered: false })
+		for (let i = 0; i < allDocs.length; i += batchSize) {
+			const batch = allDocs.slice(i, i + batchSize)
+			const operations = batch.map(doc => ({
+				updateOne: {
+					filter: { name: doc.name, manufacturer: doc.manufacturer },
+					update: { $set: doc },
+					upsert: true
+				}
+			}))
 
-		console.log(`✅ Import complete — ${allDocs.length} records inserted`);
+			const res = await Drug.bulkWrite(operations, { ordered: false })
+			upsertedCount += res.upsertedCount || res.nUpserted || 0
+			modifiedCount += res.modifiedCount || res.nModified || 0
+			matchedCount += res.matchedCount || res.nMatched || 0
+
+			console.log(`Processed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(allDocs.length / batchSize)}`)
+		}
+
+		console.log(`✅ Import complete — Matched: ${matchedCount}, Upserted: ${upsertedCount}, Modified: ${modifiedCount}`);
 		process.exit(0);
 	} catch (err) {
 		console.error('❌ Import failed:', err.message);
